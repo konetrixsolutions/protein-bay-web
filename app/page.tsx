@@ -1,12 +1,18 @@
-import Login from "./src/auth/Login";
-import LoginOtp from "./src/auth/LoginOtp";
-import Navbar from "./src/Navbar";
+"use client";
+
+import { useEffect, useState } from "react";
+import Login from "./auth/Login";
 
 export default function Home() {
-  return (
-    <div>
-      {/* <Navbar /> */}
-      <Login />
-    </div>
-  );
+  const [token, setToken] = useState<string | null>(null);
+
+  useEffect(() => {
+    setToken(localStorage.getItem("token"));
+  }, []);
+
+  if (!token) {
+    return <Login />;
+  }
+
+  // return <HomeScreen />;
 }
