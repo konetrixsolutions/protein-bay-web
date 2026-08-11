@@ -2,6 +2,8 @@
 import { FaRegUser } from "react-icons/fa";
 import { PiShoppingCartBold } from "react-icons/pi";
 import { usePathname, useRouter } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 
 const navItems = [
   {
@@ -24,6 +26,10 @@ const navItems = [
     label: "Customer Support",
     path: "/customer-support",
   },
+  {
+    label: "My Referrals",
+    path: "/my-referral",
+  },
 ];
 
 const Navbar = () => {
@@ -32,12 +38,22 @@ const Navbar = () => {
 
   return (
     <nav className="flex h-16 w-full items-center justify-between bg-white px-4 md:px-8">
-      <p
+      {/* <p
         className="text-xl font-bold text-primary cursor-pointer"
         onClick={() => router.push("/")}
       >
         Protein Bay
-      </p>
+      </p> */}
+
+      <Link href="/" className="inline-block">
+        <Image
+          src="/images/logo.png"
+          alt="ProteinBay"
+          width={190}
+          height={60}
+          className="object-contain"
+        />
+      </Link>
 
       <div className="flex items-center gap-8 text-sm font-medium">
         {navItems.map((item) => {
