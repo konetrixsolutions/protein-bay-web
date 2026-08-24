@@ -14,9 +14,9 @@ import {
 } from "react-icons/fa";
 
 import { PiShoppingCartBold } from "react-icons/pi";
-import { getCartCount } from "@/lib/cartApi";
 import { FiHeadphones } from "react-icons/fi";
 import { IoChevronForward } from "react-icons/io5";
+import { getCartCount } from "@/lib/cartApi";
 
 type MenuItem = {
   label: string;

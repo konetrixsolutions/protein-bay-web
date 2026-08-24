@@ -109,6 +109,12 @@ import { FaRegUser } from "react-icons/fa";
 import { AiTwotoneSafetyCertificate } from "react-icons/ai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
+import { toast } from "react-toastify";
+
+import { signupSchema, SignupFormData } from "./signup-schema";
 
 interface SignupProps {
   onBackToLogin: () => void;
@@ -119,45 +125,102 @@ export default function Signup({ onBackToLogin }: SignupProps) {
 
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const [name, setName] = useState("");
-
-  const [mobile, setMobile] = useState("");
-
-  const [password, setPassword] = useState("");
-
-  const [confirmPassword, setConfirmPassword] = useState("");
-
   const [referralCode, setReferralCode] = useState("");
 
-  const handleSignup = () => {
-    if (!name.trim()) {
-      alert("Please enter your name.");
-      return;
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<SignupFormData>({
+    resolver: zodResolver(signupSchema),
+    mode: "onBlur",
+    defaultValues: {
+      name: "",
+      mobile: "",
+      password: "",
+      confirmPassword: "",
+      referralCode: "",
+    },
+  });
+
+  // SIGNUP
+
+  const handleSignup = async (data: SignupFormData) => {
+    try {
+      const response = await axios.post(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/signup`,
+        {
+          name: data.name.trim(),
+          mobile: data.mobile,
+          password: data.password,
+          role: "CUSTOMER",
+        },
+        {
+          withCredentials: true,
+        },
+      );
+
+      if (!response.data?.success) {
+        throw new Error(
+          response.data?.message || "Signup failed. Please try again.",
+        );
+      }
+      toast.success(response.data?.message || "Account created successfully!");
+      onBackToLogin();
+    } catch (error) {
+      console.error("Signup error:", error);
+
+      if (axios.isAxiosError(error)) {
+        const responseData = error.response?.data;
+
+        if (responseData?.message) {
+          toast.error(responseData.message);
+          return;
+        }
+
+        if (
+          Array.isArray(responseData?.errors) &&
+          responseData.errors.length > 0
+        ) {
+          const backendError = responseData.errors[0];
+
+          toast.error(backendError?.message || "Invalid signup details.");
+
+          return;
+        }
+
+        if (error.response?.status === 409) {
+          toast.error("An account with this mobile number already exists.");
+          return;
+        }
+
+        if (error.response?.status === 400) {
+          toast.error("Invalid signup details. Please check your information.");
+          return;
+        }
+
+        if (error.response?.status && error.response.status >= 500) {
+          toast.error(
+            "Something went wrong on the server. Please try again later.",
+          );
+          return;
+        }
+
+        if (!error.response) {
+          toast.error(
+            "Unable to connect to the server. Please check your internet connection.",
+          );
+          return;
+        }
+      }
+
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Signup failed. Please try again.",
+      );
     }
-
-    if (mobile.length !== 10) {
-      alert("Please enter a valid mobile number.");
-      return;
-    }
-
-    if (password.length < 6) {
-      alert("Password must be at least 6 characters.");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      alert("Passwords do not match.");
-      return;
-    }
-
-    //  signup API
-
-    console.log({
-      name,
-      mobile,
-      password,
-      referralCode,
-    });
   };
 
   return (
@@ -248,7 +311,10 @@ export default function Signup({ onBackToLogin }: SignupProps) {
 
             {/* FORM */}
 
-            <div className="mt-6 space-y-4">
+            <form
+              onSubmit={handleSubmit(handleSignup)}
+              className="mt-6 space-y-4"
+            >
               {/* Name */}
 
               <div>
@@ -263,12 +329,18 @@ export default function Signup({ onBackToLogin }: SignupProps) {
                   />
 
                   <Input
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    {...register("name")}
                     placeholder="Enter your full name"
                     className="h-13 rounded-xl pl-11"
+                    maxLength={50}
                   />
                 </div>
+
+                {errors.name && (
+                  <p className="mt-1.5 text-xs text-destructive">
+                    {errors.name.message}
+                  </p>
+                )}
               </div>
 
               {/* Mobile */}
@@ -291,16 +363,26 @@ export default function Signup({ onBackToLogin }: SignupProps) {
                   <div className="absolute left-[74px] top-0 h-full w-px bg-border" />
 
                   <Input
-                    value={mobile}
-                    onChange={(e) =>
-                      setMobile(e.target.value.replace(/\D/g, ""))
-                    }
+                    {...register("mobile")}
+                    onChange={(e) => {
+                      const value = e.target.value.replace(/\D/g, "");
+
+                      setValue("mobile", value, {
+                        shouldValidate: true,
+                      });
+                    }}
                     maxLength={10}
                     inputMode="numeric"
                     placeholder="Enter your mobile number"
                     className="h-13 rounded-xl pl-24"
                   />
                 </div>
+
+                {errors.mobile && (
+                  <p className="mt-1.5 text-xs text-destructive">
+                    {errors.mobile.message}
+                  </p>
+                )}
               </div>
 
               {/* Password */}
@@ -312,11 +394,11 @@ export default function Signup({ onBackToLogin }: SignupProps) {
 
                 <div className="relative">
                   <Input
+                    {...register("password")}
                     type={showPassword ? "text" : "password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
                     placeholder="Create a password"
                     className="h-13 rounded-xl pr-12"
+                    maxLength={64}
                   />
 
                   <button
@@ -328,9 +410,16 @@ export default function Signup({ onBackToLogin }: SignupProps) {
                   </button>
                 </div>
 
-                <p className="mt-1.5 text-[10px] text-muted-foreground">
-                  Use at least 6 characters.
-                </p>
+                {errors.password ? (
+                  <p className="mt-1.5 text-xs text-destructive">
+                    {errors.password.message}
+                  </p>
+                ) : (
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">
+                    Minimum 6 characters with uppercase, lowercase, number and
+                    special character.
+                  </p>
+                )}
               </div>
 
               {/* Confirm Password */}
@@ -342,11 +431,11 @@ export default function Signup({ onBackToLogin }: SignupProps) {
 
                 <div className="relative">
                   <Input
+                    {...register("confirmPassword")}
                     type={showConfirmPassword ? "text" : "password"}
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Re-enter your password"
                     className="h-13 rounded-xl pr-12"
+                    maxLength={64}
                   />
 
                   <button
@@ -361,6 +450,12 @@ export default function Signup({ onBackToLogin }: SignupProps) {
                     )}
                   </button>
                 </div>
+
+                {errors.confirmPassword && (
+                  <p className="mt-1.5 text-xs text-destructive">
+                    {errors.confirmPassword.message}
+                  </p>
+                )}
               </div>
 
               {/* Referral */}
@@ -393,13 +488,16 @@ export default function Signup({ onBackToLogin }: SignupProps) {
               {/* Signup Button */}
 
               <Button
-                onClick={handleSignup}
+                type="submit"
                 variant="primary"
+                disabled={isSubmitting}
                 className="mt-2 h-14 w-full rounded-xl text-lg font-semibold"
               >
-                <span className="flex-1 text-center">Create Account</span>
+                <span className="flex-1 text-center">
+                  {isSubmitting ? "Creating Account..." : "Create Account"}
+                </span>
 
-                <ArrowRight className="h-5 w-5" />
+                {!isSubmitting && <ArrowRight className="h-5 w-5" />}
               </Button>
 
               {/* Login */}
@@ -438,7 +536,7 @@ export default function Signup({ onBackToLogin }: SignupProps) {
                   .
                 </p>
               </div>
-            </div>
+            </form>
           </div>
         </div>
       </div>
