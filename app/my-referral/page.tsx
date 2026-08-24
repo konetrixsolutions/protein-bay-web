@@ -14,6 +14,7 @@ import { LuCircleDollarSign } from "react-icons/lu";
 import { Button } from "@/components/ui/button";
 import { TiGift } from "react-icons/ti";
 import axios from "axios";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Referral = {
   id: string | number;
@@ -39,44 +40,26 @@ type RedemptionHistory = {
 
 const MyReferrals = () => {
   const [showRedeem, setShowRedeem] = useState(false);
-
   const [accountType, setAccountType] = useState<"upi" | "bank">("upi");
-
   const [upiId, setUpiId] = useState("");
-
   const [accountHolderName, setAccountHolderName] = useState("");
-
   const [accountNumber, setAccountNumber] = useState("");
-
   const [ifscCode, setIfscCode] = useState("");
-
   const [referrals, setReferrals] = useState<Referral[]>([]);
-
   const [redemptionHistory, setRedemptionHistory] = useState<
     RedemptionHistory[]
   >([]);
 
   const [referralCode, setReferralCode] = useState("");
-
   const [totalBonus, setTotalBonus] = useState(0);
-
   const [availableBalance, setAvailableBalance] = useState(0);
-
   const [redeemedCount, setRedeemedCount] = useState(0);
-
   const [loading, setLoading] = useState(true);
-
   const [redeeming, setRedeeming] = useState(false);
-
   const [error, setError] = useState("");
-
   const [formError, setFormError] = useState("");
 
-  /*
-   * ============================================================
-   * SCROLL TO REDEEM SECTION
-   * ============================================================
-   */
+  // SCROLL TO REDEEM SECTION
 
   useEffect(() => {
     if (showRedeem) {
@@ -87,11 +70,7 @@ const MyReferrals = () => {
     }
   }, [showRedeem]);
 
-  /*
-   * ============================================================
-   * FORMAT DATE
-   * ============================================================
-   */
+  /* FORMAT DATe */
 
   const formatDate = (date?: string) => {
     if (!date) {
@@ -111,13 +90,6 @@ const MyReferrals = () => {
     });
   };
 
-  /*
-   * ============================================================
-   * FETCH REFERRAL DASHBOARD
-   * GET /referrals/
-   * ============================================================
-   */
-
   const fetchReferralDashboard = async () => {
     try {
       setLoading(true);
@@ -129,9 +101,7 @@ const MyReferrals = () => {
           withCredentials: true,
         },
       );
-
       const result = response.data;
-
       if (!result?.success) {
         throw new Error(
           result?.message || "Failed to fetch referral dashboard",
@@ -140,142 +110,72 @@ const MyReferrals = () => {
 
       const data = result?.data ?? {};
 
-      /*
-       * --------------------------------------------------------
-       * REFERRAL CODE
-       *
-       * Supports common backend naming variations.
-       * --------------------------------------------------------
-       */
+      // Straightforward mapping for the expected API shape
+      setReferralCode(String(data?.referralCode ?? ""));
 
-      const apiReferralCode =
-        data?.referralCode ?? data?.code ?? data?.referral?.code ?? "";
+      const activity = Array.isArray(data?.referralActivity)
+        ? data.referralActivity
+        : Array.isArray(data?.referralActivity ?? data?.activity)
+          ? (data.referralActivity ?? data.activity)
+          : [];
 
-      setReferralCode(String(apiReferralCode));
-
-      /*
-       * --------------------------------------------------------
-       * REFERRAL LIST
-       * --------------------------------------------------------
-       */
-
-      const apiReferrals =
-        data?.referrals ??
-        data?.referralUsers ??
-        data?.users ??
-        data?.activity ??
-        [];
-
-      const mappedReferrals: Referral[] = Array.isArray(apiReferrals)
-        ? apiReferrals.map((item: any, index: number) => {
-            const user =
-              item?.user ?? item?.referredUser ?? item?.referee ?? {};
-
-            const bonus = Number(
-              item?.bonus ??
-                item?.referralBonus ??
-                item?.reward ??
-                item?.amount ??
-                0,
-            );
-
-            const redeemed = Boolean(
-              item?.redeemed ??
-              item?.isRedeemed ??
-              item?.bonusRedeemed ??
-              false,
-            );
-
-            return {
-              id: item?.id ?? index,
-
-              name: item?.name ?? user?.name ?? user?.fullName ?? "User",
-
-              mobile:
-                item?.mobile ?? user?.mobile ?? user?.phone ?? "xxxxxxxxxx",
-
-              bonus,
-
-              redeemed,
-
-              redeemedDate:
-                (item?.redeemedDate ?? item?.redeemedAt)
-                  ? formatDate(item?.redeemedDate ?? item?.redeemedAt)
-                  : undefined,
-            };
-          })
+      const mappedReferrals: Referral[] = Array.isArray(activity)
+        ? activity.map((item: any, index: number) => ({
+            id: item?.id ?? index,
+            name: item?.name ?? item?.user?.name ?? "User",
+            mobile: item?.mobile ?? item?.user?.mobile ?? "",
+            bonus: Number(item?.bonus ?? item?.amount ?? 0),
+            redeemed: Boolean(item?.redeemed ?? item?.isRedeemed ?? false),
+            redeemedDate:
+              item?.redeemedDate || item?.redeemedAt
+                ? formatDate(item?.redeemedDate ?? item?.redeemedAt)
+                : undefined,
+          }))
         : [];
 
       setReferrals(mappedReferrals);
 
-      /*
-       * --------------------------------------------------------
-       * TOTAL BONUS
-       * --------------------------------------------------------
-       *
-       * Prefer backend totals if available.
-       * Otherwise calculate from referrals.
-       * --------------------------------------------------------
-       */
+      // Backend totals (preferred)
+      if (data?.totalReferralBonus !== undefined) {
+        setTotalBonus(Number(data.totalReferralBonus));
+      } else {
+        setTotalBonus(mappedReferrals.reduce((s, r) => s + r.bonus, 0));
+      }
 
-      const calculatedTotal = mappedReferrals.reduce(
-        (total, referral) => total + referral.bonus,
-        0,
-      );
+      if (data?.availableRedeemBonus !== undefined) {
+        setAvailableBalance(Number(data.availableRedeemBonus));
+      } else if (
+        data?.totalAvailableMembers !== undefined &&
+        data?.totalReferralMembers !== undefined
+      ) {
+        // fallback: calculate available from members if provided
+        const availableMembers = Number(data.totalAvailableMembers || 0);
+        const totalMembers = Number(data.totalReferralMembers || 0);
+        // no direct monetary value; keep existing available calculation instead
+        setAvailableBalance(
+          mappedReferrals
+            .filter((r) => !r.redeemed)
+            .reduce((s, r) => s + r.bonus, 0),
+        );
+      } else {
+        setAvailableBalance(
+          mappedReferrals
+            .filter((r) => !r.redeemed)
+            .reduce((s, r) => s + r.bonus, 0),
+        );
+      }
 
-      const apiTotalBonus =
-        data?.totalBonus ??
-        data?.totalReferralBonus ??
-        data?.totalEarned ??
-        data?.earnings?.total ??
-        data?.summary?.totalBonus;
-
-      setTotalBonus(
-        apiTotalBonus !== undefined ? Number(apiTotalBonus) : calculatedTotal,
-      );
-
-      /*
-       * --------------------------------------------------------
-       * AVAILABLE BALANCE
-       * --------------------------------------------------------
-       */
-
-      const calculatedAvailable = mappedReferrals
-        .filter((referral) => !referral.redeemed)
-        .reduce((total, referral) => total + referral.bonus, 0);
-
-      const apiAvailableBalance =
-        data?.availableBalance ??
-        data?.redeemableBalance ??
-        data?.availableBonus ??
-        data?.availableReferralBonus ??
-        data?.earnings?.available ??
-        data?.summary?.availableBalance;
-
-      setAvailableBalance(
-        apiAvailableBalance !== undefined
-          ? Number(apiAvailableBalance)
-          : calculatedAvailable,
-      );
-
-      /*
-       * --------------------------------------------------------
-       * REDEEMED COUNT
-       * --------------------------------------------------------
-       */
-
-      const calculatedRedeemedCount = mappedReferrals.filter(
-        (referral) => referral.redeemed,
-      ).length;
-
-      const apiRedeemedCount =
-        data?.redeemedCount ?? data?.summary?.redeemedCount;
-
-      setRedeemedCount(
-        apiRedeemedCount !== undefined
-          ? Number(apiRedeemedCount)
-          : calculatedRedeemedCount,
-      );
+      if (
+        data?.totalReferralMembers !== undefined &&
+        data?.totalAvailableMembers !== undefined
+      ) {
+        const redeemed =
+          Number(data.totalReferralMembers) -
+          Number(data.totalAvailableMembers);
+        setRedeemedCount(Math.max(0, redeemed));
+      } else {
+        setRedeemedCount(mappedReferrals.filter((r) => r.redeemed).length);
+      }
     } catch (error) {
       console.error("Referral dashboard error:", error);
 
@@ -290,13 +190,6 @@ const MyReferrals = () => {
       setLoading(false);
     }
   };
-
-  /*
-   * ============================================================
-   * FETCH REDEMPTION HISTORY
-   * GET /referrals/redemption-history
-   * ============================================================
-   */
 
   const fetchRedemptionHistory = async () => {
     try {
@@ -323,23 +216,14 @@ const MyReferrals = () => {
         Array.isArray(historyData)
           ? historyData.map((item: any) => ({
               id: item?.id ?? "",
-
               amount: Number(item?.amount ?? 0),
-
               paymentMethod: item?.paymentMethod ?? "",
-
               status: item?.status ?? "",
-
               createdAt: item?.createdAt,
-
               updatedAt: item?.updatedAt,
-
               upiId: item?.upiId,
-
               accountHolderName: item?.accountHolderName,
-
               accountNumber: item?.accountNumber,
-
               ifscCode: item?.ifscCode,
             }))
           : [],
@@ -351,12 +235,6 @@ const MyReferrals = () => {
     }
   };
 
-  /*
-   * ============================================================
-   * INITIAL LOAD
-   * ============================================================
-   */
-
   useEffect(() => {
     const loadReferralData = async () => {
       await Promise.all([fetchReferralDashboard(), fetchRedemptionHistory()]);
@@ -364,12 +242,6 @@ const MyReferrals = () => {
 
     loadReferralData();
   }, []);
-
-  /*
-   * ============================================================
-   * COPY REFERRAL CODE
-   * ============================================================
-   */
 
   const copyReferralCode = async () => {
     try {
@@ -383,44 +255,20 @@ const MyReferrals = () => {
     }
   };
 
-  /*
-   * ============================================================
-   * REDEEM REFERRAL BONUS
-   *
-   * POST /referrals/redemptions
-   * ============================================================
-   */
-
   const handleRedeem = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     setFormError("");
-
-    /*
-     * No balance available.
-     */
 
     if (availableBalance <= 0) {
       setFormError("No referral balance is available for redemption.");
       return;
     }
 
-    /*
-     * --------------------------------------------------------
-     * UPI VALIDATION
-     * --------------------------------------------------------
-     */
-
     if (accountType === "upi" && !upiId.trim()) {
       setFormError("Please enter your UPI ID.");
       return;
     }
-
-    /*
-     * --------------------------------------------------------
-     * BANK VALIDATION
-     * --------------------------------------------------------
-     */
 
     if (accountType === "bank") {
       if (!accountHolderName.trim()) {
@@ -439,12 +287,6 @@ const MyReferrals = () => {
       }
     }
 
-    /*
-     * --------------------------------------------------------
-     * REQUEST BODY
-     * --------------------------------------------------------
-     */
-
     const payload: {
       amount: number;
       paymentMethod: "UPI" | "BANK";
@@ -456,26 +298,19 @@ const MyReferrals = () => {
       accountType === "upi"
         ? {
             amount: availableBalance,
-
             paymentMethod: "UPI",
-
             upiId: upiId.trim(),
           }
         : {
             amount: availableBalance,
-
             paymentMethod: "BANK",
-
             accountHolderName: accountHolderName.trim(),
-
             accountNumber: accountNumber.trim(),
-
             ifscCode: ifscCode.trim().toUpperCase(),
           };
 
     try {
       setRedeeming(true);
-
       const response = await axios.post(
         `${process.env.NEXT_PUBLIC_API_URL}/referrals/redemptions`,
         payload,
@@ -485,31 +320,16 @@ const MyReferrals = () => {
       );
 
       const result = response.data;
-
       if (!result?.success) {
         throw new Error(result?.message || "Failed to redeem referral bonus");
       }
-
-      /*
-       * Clear form after successful redemption.
-       */
 
       setUpiId("");
       setAccountHolderName("");
       setAccountNumber("");
       setIfscCode("");
 
-      /*
-       * Refresh both dashboard and
-       * redemption history.
-       */
-
       await Promise.all([fetchReferralDashboard(), fetchRedemptionHistory()]);
-
-      /*
-       * Return to referral dashboard.
-       */
-
       setShowRedeem(false);
     } catch (error) {
       console.error("Referral redemption error:", error);
@@ -530,12 +350,6 @@ const MyReferrals = () => {
       setRedeeming(false);
     }
   };
-
-  /*
-   * ============================================================
-   * REDEEM SCREEN
-   * ============================================================
-   */
 
   if (showRedeem) {
     return (
@@ -806,35 +620,25 @@ const MyReferrals = () => {
     );
   }
 
-  /*
-   * ============================================================
-   * LOADING
-   * ============================================================
-   */
-
   if (loading) {
     return (
       <main className="min-h-screen bg-[#f7f9f4]">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 md:py-12 lg:px-8">
-          <div className="animate-pulse">
-            <div className="h-4 w-32 rounded bg-[#e4e9e0]" />
+          <div>
+            <Skeleton className="h-4 w-32 rounded" />
 
-            <div className="mt-3 h-10 w-52 rounded-lg bg-[#e4e9e0]" />
+            <Skeleton className="mt-3 h-10 w-52 rounded-lg" />
 
-            <div className="mt-8 h-48 rounded-2xl bg-[#e4e9e0]" />
+            <Skeleton className="mt-8 h-48 rounded-2xl" />
 
-            <div className="mt-6 h-72 rounded-2xl bg-[#e4e9e0]" />
+            <Skeleton className="mt-6 h-72 rounded-2xl" />
           </div>
         </div>
       </main>
     );
   }
 
-  /*
-   * ============================================================
-   * REFERRAL PAGE
-   * ============================================================
-   */
+  // REFERRAL PAGE
 
   return (
     <main className="min-h-screen bg-[#f7f9f4]">
