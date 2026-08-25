@@ -103,6 +103,7 @@ const Categories = () => {
   const [showProductFilter, setShowProductFilter] = useState(true);
   const [showPriceFilter, setShowPriceFilter] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -376,6 +377,11 @@ const Categories = () => {
       console.error("Add to cart error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to add product to cart.",
         );
@@ -427,6 +433,11 @@ const Categories = () => {
       console.error("Add to wishlist error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to add product to wishlist.",
         );

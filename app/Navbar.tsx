@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   FaBars,
@@ -11,6 +11,7 @@ import {
   FaRegHeart,
   FaHeart,
   FaRegUser,
+  FaSignOutAlt,
 } from "react-icons/fa";
 
 import { PiShoppingCartBold } from "react-icons/pi";
@@ -51,11 +52,6 @@ const mainNavItems = [
 ];
 
 const menuItems: MenuItem[] = [
-  {
-    label: "My Wishlist",
-    path: "/wishlist",
-    icon: FaRegHeart,
-  },
   {
     label: "My Referrals",
     path: "/my-referral",
@@ -127,6 +123,32 @@ const Navbar = () => {
       window.removeEventListener("cartUpdated", handler);
     };
   }, []);
+
+  const router = useRouter();
+
+  if (pathname === "/auth/login") {
+    return null;
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+
+    setMenuOpen(false);
+
+    try {
+      // notify other parts of the app (cart count, profile state)
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (e) {}
+
+    router.push("/categories");
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-[#e7ece4] bg-[#fcfdf9]/95 backdrop-blur-xl">
@@ -300,6 +322,26 @@ const Navbar = () => {
                       </Link>
                     );
                   })}
+                  <div className="mt-2 border-t border-[#edf0eb] pt-2">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-red-50"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-destructive group-hover:bg-red-100">
+                        <FaSignOutAlt size={16} />
+                      </span>
+
+                      <span className="flex-1 text-sm font-medium text-destructive">
+                        Logout
+                      </span>
+
+                      <IoChevronForward
+                        size={14}
+                        className="text-red-300 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -411,6 +453,26 @@ const Navbar = () => {
                       </Link>
                     );
                   })}
+                  <div className="mt-2 border-t border-[#edf0eb] pt-2">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-red-50"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-destructive group-hover:bg-red-100">
+                        <FaSignOutAlt size={16} />
+                      </span>
+
+                      <span className="flex-1 text-sm font-medium text-destructive">
+                        Logout
+                      </span>
+
+                      <IoChevronForward
+                        size={14}
+                        className="text-red-300 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
