@@ -15,6 +15,7 @@ import {
   Sparkles,
   User,
 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface Category {
   id: string;
@@ -264,14 +265,14 @@ const ProductCard = ({
         {/* Buttons */}
 
         <div className="mt-4 flex gap-2">
-          <button
-            type="button"
+          <Button
             disabled={!product.variantId}
             onClick={() => onAddToCart(product)}
-            className="flex h-10 flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-3 text-sm font-semibold text-white transition-all duration-200 hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-50"
+            variant="primary"
+            className="flex h-10 flex-1 items-center justify-center gap-2  px-3 text-sm font-semibold text-white transition-all duration-200  disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <span>Add to Cart</span>
-          </button>
+            Add to Cart
+          </Button>
 
           <button
             type="button"
