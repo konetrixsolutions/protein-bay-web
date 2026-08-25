@@ -413,6 +413,21 @@ const Cart = () => {
                 return (
                   <div
                     key={item.id}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (
+                        target.closest("a") ||
+                        target.closest("button") ||
+                        target.closest("input")
+                      ) {
+                        return;
+                      }
+
+                      try {
+                        // navigate to product page
+                        window.location.href = `/products/${item.productId}`;
+                      } catch (err) {}
+                    }}
                     className="rounded-2xl border border-[#e4e8e1] bg-white p-3 transition-all duration-200 hover:border-[#cbdac5] hover:shadow-[0_6px_20px_rgba(23,59,27,0.04)] sm:p-4"
                   >
                     <div className="grid grid-cols-[88px_1fr] gap-4 sm:grid-cols-[150px_1fr] sm:gap-6">

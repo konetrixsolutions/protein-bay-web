@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { FaHeart, FaStar, FaShoppingBag } from "react-icons/fa";
 import { IoClose } from "react-icons/io5";
@@ -34,15 +35,14 @@ type WishlistItem = {
 };
 
 const Wishlist = () => {
+  const router = useRouter();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
 
   const [loading, setLoading] = useState(true);
 
   const [removingId, setRemovingId] = useState<string | null>(null);
 
-  /* =========================================================
-     FETCH WISHLIST
-  ========================================================= */
+  //  FETCH WISHLIST
 
   useEffect(() => {
     const fetchWishlist = async () => {
@@ -118,9 +118,7 @@ const Wishlist = () => {
     fetchWishlist();
   }, []);
 
-  /* =========================================================
-     REMOVE FROM WISHLIST
-  ========================================================= */
+  //  REMOVE FROM WISHLIST
 
   const removeFromWishlist = async (wishlistId: string) => {
     try {
@@ -297,6 +295,20 @@ const Wishlist = () => {
             return (
               <article
                 key={item.id}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  if (
+                    target.closest("a") ||
+                    target.closest("button") ||
+                    target.closest("input")
+                  ) {
+                    return;
+                  }
+
+                  try {
+                    router.push(`/products/${item.productId}`);
+                  } catch (err) {}
+                }}
                 className="group overflow-hidden rounded-2xl border border-[#e1e7dd] bg-white shadow-[0_6px_25px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cbdac5] hover:shadow-[0_15px_35px_rgba(23,59,27,0.08)]"
               >
                 {/* Image */}

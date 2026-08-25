@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
 import {
   FiChevronDown,
@@ -989,13 +990,34 @@ const ProductCardView = ({
   onAddToCart,
   onAddToWishlist,
 }: ProductCardViewProps) => {
+  const router = useRouter();
   const discount =
     product.mrp > product.price
       ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
       : 0;
 
   return (
-    <div className="group overflow-hidden rounded-2xl border border-[#dfe6da] bg-white shadow-[0_5px_20px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cdd8c8] hover:shadow-[0_15px_35px_rgba(23,59,27,0.09)]">
+    <div
+      onClick={(e) => {
+        const target = e.target as HTMLElement;
+        if (
+          target.closest("a") ||
+          target.closest("button") ||
+          target.closest("input")
+        ) {
+          return;
+        }
+
+        try {
+          const categoryQuery = product.categoryId
+            ? `?categoryId=${product.categoryId}`
+            : "";
+
+          router.push(`/products/${product.id}${categoryQuery}`);
+        } catch (err) {}
+      }}
+      className="group overflow-hidden rounded-2xl border border-[#dfe6da] bg-white shadow-[0_5px_20px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cdd8c8] hover:shadow-[0_15px_35px_rgba(23,59,27,0.09)]"
+    >
       {/* Image */}
 
       <div className="relative aspect-square overflow-hidden bg-[#f6f0e7]">
