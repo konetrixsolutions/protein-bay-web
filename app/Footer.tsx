@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   FaFacebook,
   FaInstagram,
@@ -28,6 +29,11 @@ const helpLinks = [
 ];
 
 const Footer = () => {
+  const pathname = usePathname();
+
+  if (pathname === "/auth/login") {
+    return null;
+  }
   return (
     <footer className="mt-16 bg-[#f7f8f1] text-[#173b1b]">
       {/* Main Footer */}

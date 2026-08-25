@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import axios from "axios";
 import {
   FiChevronDown,
@@ -84,17 +84,21 @@ interface ProductCard {
 
 const FALLBACK_IMAGE = "/images/cookie.jpg";
 
-const Categories = () => {
+const CategoriesContent = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<ProductCard[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [addingCartId, setAddingCartId] = useState<string | null>(null);
   const [addingWishlistId, setAddingWishlistId] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const categoryIdFromUrl = searchParams.get("categoryId");
 
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    categoryIdFromUrl ? [categoryIdFromUrl] : [],
+  );
 
   const [minPrice, setMinPrice] = useState(0);
   const [maxPrice, setMaxPrice] = useState(1000);
@@ -103,6 +107,7 @@ const Categories = () => {
   const [showProductFilter, setShowProductFilter] = useState(true);
   const [showPriceFilter, setShowPriceFilter] = useState(true);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -248,13 +253,13 @@ const Categories = () => {
     }
 
     /*
-     * CATEGORY FILTER
-     * A product belongs to a category when:
-     * product.categoryId === category.id
-     * Multiple selected categories work as OR:
-     * Bonda + Cookie
-     * means:
-     * show Bonda products OR Cookie products.
+      CATEGORY FILTER
+      A product belongs to a category when:
+      product.categoryId === category.id
+      Multiple selected categories work as OR:
+      Bonda + Cookie
+      means:
+      show Bonda products OR Cookie products.
      */
 
     if (selectedCategories.length > 0) {
@@ -376,6 +381,11 @@ const Categories = () => {
       console.error("Add to cart error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to add product to cart.",
         );
@@ -427,6 +437,11 @@ const Categories = () => {
       console.error("Add to wishlist error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to add product to wishlist.",
         );
@@ -770,11 +785,13 @@ const Categories = () => {
   );
 };
 
-export default Categories;
-
-/*
- FILTER SIDEBAR
-*/
+export default function Categories() {
+  return (
+    <Suspense fallback={null}>
+      <CategoriesContent />
+    </Suspense>
+  );
+}
 
 interface FilterSidebarProps {
   categories: Category[];

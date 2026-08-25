@@ -174,6 +174,12 @@ const Wishlist = () => {
           "Add to cart API error:",
           error.response?.data || error.message,
         );
+
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error?.response?.data?.message || "Failed to add item to cart",
         );

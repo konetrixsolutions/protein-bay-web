@@ -1,13 +1,14 @@
 "use client";
 
-import Login from "./auth/Login";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-export default function Home() {
-  return (
-    <div>
-      <Login />
-    </div>
-  );
+export default function RootPage() {
+  const router = useRouter();
 
-  // return <HomeScreen />;
+  useEffect(() => {
+    router.replace("/home");
+  }, [router]);
+
+  return null;
 }

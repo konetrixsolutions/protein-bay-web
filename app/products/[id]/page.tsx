@@ -303,6 +303,11 @@ const ProductView = () => {
       console.error("Add to cart error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to add product to cart.",
         );
@@ -346,6 +351,11 @@ const ProductView = () => {
       console.error("Buy now error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to proceed with purchase.",
         );
@@ -387,6 +397,11 @@ const ProductView = () => {
       console.error("Wishlist error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          router.push("/auth/login");
+          return;
+        }
+
         toast.error(
           error.response?.data?.message ?? "Unable to add to wishlist.",
         );

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   FaBars,
@@ -11,6 +11,7 @@ import {
   FaRegHeart,
   FaHeart,
   FaRegUser,
+  FaSignOutAlt,
 } from "react-icons/fa";
 
 import { PiShoppingCartBold } from "react-icons/pi";
@@ -51,11 +52,6 @@ const mainNavItems = [
 ];
 
 const menuItems: MenuItem[] = [
-  {
-    label: "My Wishlist",
-    path: "/wishlist",
-    icon: FaRegHeart,
-  },
   {
     label: "My Referrals",
     path: "/my-referral",
@@ -128,6 +124,32 @@ const Navbar = () => {
     };
   }, []);
 
+  const router = useRouter();
+
+  if (pathname === "/auth/login") {
+    return null;
+  }
+
+  const handleLogout = async () => {
+    try {
+      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Logout error:", err);
+    }
+
+    setMenuOpen(false);
+
+    try {
+      // notify other parts of the app (cart count, profile state)
+      window.dispatchEvent(new Event("cartUpdated"));
+    } catch (e) {}
+
+    router.push("/categories");
+  };
+
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-[#e7ece4] bg-[#fcfdf9]/95 backdrop-blur-xl">
       <div className="mx-auto flex h-[78px] max-w-[1400px] items-center justify-between px-5 sm:px-7 lg:px-10">
@@ -145,7 +167,7 @@ const Navbar = () => {
 
         {/* DESKTOP NAVIGATION */}
 
-        <div className="hidden xl:flex items-center">
+        <div className="hidden lg:flex items-center">
           <div className="flex items-center gap-1 rounded-full border border-[#e3e9df] bg-white/80 p-1.5 shadow-[0_5px_20px_rgba(23,59,27,0.035)]">
             {mainNavItems.map((item) => {
               const active = pathname === item.path;
@@ -229,7 +251,7 @@ const Navbar = () => {
               {menuOpen ? <FaTimes size={16} /> : <FaBars size={17} />}
 
               {/* MENU text only on desktop */}
-              <span className="hidden text-[11px] font-bold uppercase tracking-[0.14em] xl:block">
+              <span className="hidden text-[11px] font-bold uppercase tracking-[0.14em] lg:block">
                 Menu
               </span>
             </button>
@@ -237,9 +259,9 @@ const Navbar = () => {
             {/* DESKTOP DROPDOWN */}
 
             {menuOpen && (
-              <div className="absolute right-0 top-[58px] hidden w-[310px] overflow-hidden rounded-[22px] border border-[#dfe7da] bg-white shadow-[0_28px_70px_rgba(23,59,27,0.16)] xl:block">
+              <div className="absolute right-0 top-[58px] hidden w-[310px] overflow-hidden rounded-[22px] border border-[#dfe7da] bg-white shadow-[0_28px_70px_rgba(23,59,27,0.16)] lg:block">
+                {" "}
                 {/* Header */}
-
                 <div className="relative overflow-hidden bg-[#173b1b] px-5 py-5 text-white">
                   <div className="absolute -right-10 -top-12 h-36 w-36 rounded-full bg-white/10 blur-2xl" />
 
@@ -257,9 +279,7 @@ const Navbar = () => {
                     </div>
                   </div>
                 </div>
-
                 {/* Items */}
-
                 <div className="p-2.5">
                   <p className="px-3 pb-2 pt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8b968d]">
                     Account & Support
@@ -300,6 +320,26 @@ const Navbar = () => {
                       </Link>
                     );
                   })}
+                  <div className="mt-2 border-t border-[#edf0eb] pt-2">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-red-50"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-destructive group-hover:bg-red-100">
+                        <FaSignOutAlt size={16} />
+                      </span>
+
+                      <span className="flex-1 text-sm font-medium text-destructive">
+                        Logout
+                      </span>
+
+                      <IoChevronForward
+                        size={14}
+                        className="text-red-300 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -307,9 +347,9 @@ const Navbar = () => {
             {/* MOBILE MENU */}
 
             {menuOpen && (
-              <div className="fixed left-3 right-3 top-[86px] max-h-[calc(100vh-100px)] overflow-y-auto rounded-[22px] border border-[#dfe7da] bg-white shadow-[0_28px_70px_rgba(23,59,27,0.16)] xl:hidden">
+              <div className="fixed left-3 right-3 top-[86px] max-h-[calc(100vh-100px)] overflow-y-auto rounded-[22px] border border-[#dfe7da] bg-white shadow-[0_28px_70px_rgba(23,59,27,0.16)] lg:hidden">
+                {" "}
                 {/* Header */}
-
                 <div className="relative overflow-hidden bg-[#173b1b] px-5 py-6 text-white">
                   <div className="absolute -right-10 -top-14 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
 
@@ -323,9 +363,7 @@ const Navbar = () => {
                     </p>
                   </div>
                 </div>
-
                 {/* Explore */}
-
                 <div className="border-b border-[#edf0eb] p-3">
                   <p className="px-3 pb-2 pt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8b968d]">
                     Explore
@@ -367,9 +405,7 @@ const Navbar = () => {
                     );
                   })}
                 </div>
-
                 {/* Account */}
-
                 <div className="p-3">
                   <p className="px-3 pb-2 pt-1 text-[9px] font-bold uppercase tracking-[0.18em] text-[#8b968d]">
                     My Account
@@ -411,6 +447,26 @@ const Navbar = () => {
                       </Link>
                     );
                   })}
+                  <div className="mt-2 border-t border-[#edf0eb] pt-2">
+                    <button
+                      type="button"
+                      onClick={handleLogout}
+                      className="group flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left transition-all duration-200 hover:bg-red-50"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-destructive group-hover:bg-red-100">
+                        <FaSignOutAlt size={16} />
+                      </span>
+
+                      <span className="flex-1 text-sm font-medium text-destructive">
+                        Logout
+                      </span>
+
+                      <IoChevronForward
+                        size={14}
+                        className="text-red-300 transition-transform group-hover:translate-x-0.5"
+                      />
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
