@@ -38,7 +38,9 @@ type Coupon = {
   minOrderAmount?: number;
   minimumOrderAmount?: number;
   maxDiscount?: number;
+  maximumDiscountAmount?: number;
   isActive?: boolean;
+  startsAt?: string;
   expiresAt?: string;
 };
 
@@ -226,12 +228,16 @@ const Cart = () => {
       let calculatedDiscount = (subtotal * percentageValue) / 100;
 
       if (
-        selectedCoupon.maxDiscount !== undefined &&
-        selectedCoupon.maxDiscount !== null
+        (selectedCoupon.maxDiscount !== undefined &&
+          selectedCoupon.maxDiscount !== null) ||
+        (selectedCoupon.maximumDiscountAmount !== undefined &&
+          selectedCoupon.maximumDiscountAmount !== null)
       ) {
         calculatedDiscount = Math.min(
           calculatedDiscount,
-          Number(selectedCoupon.maxDiscount),
+          Number(
+            selectedCoupon.maxDiscount ?? selectedCoupon.maximumDiscountAmount,
+          ),
         );
       }
 
@@ -248,8 +254,9 @@ const Cart = () => {
     return Math.min(Number(genericValue), subtotal);
   };
 
-  const applyCoupon = () => {
-    const code = coupon.trim().toUpperCase();
+  const applyCoupon = (couponCode = coupon) => {
+    const code = couponCode.trim().toUpperCase();
+    const currentTime = new Date().getTime();
 
     setCouponError("");
 
@@ -277,8 +284,18 @@ const Cart = () => {
     }
 
     if (
+      selectedCoupon.startsAt &&
+      new Date(selectedCoupon.startsAt).getTime() > currentTime
+    ) {
+      setAppliedCoupon(null);
+      setCouponDiscount(0);
+      setCouponError("This coupon is not available yet.");
+      return;
+    }
+
+    if (
       selectedCoupon.expiresAt &&
-      new Date(selectedCoupon.expiresAt).getTime() < Date.now()
+      new Date(selectedCoupon.expiresAt).getTime() < currentTime
     ) {
       setAppliedCoupon(null);
       setCouponDiscount(0);
@@ -560,7 +577,7 @@ const Cart = () => {
 
           {/* RIGHT - ORDER SUMMARY */}
 
-          <aside className="lg:sticky lg:top-24">
+          <aside className="lg:sticky lg:top-24 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto lg:overscroll-contain">
             <section className="rounded-2xl border border-[#e1e7dd] bg-white p-5 shadow-[0_6px_25px_rgba(23,59,27,0.04)] sm:p-6">
               {/* Header */}
 
@@ -688,23 +705,63 @@ const Cart = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="mt-3 flex gap-2">
-                      <input
-                        value={coupon}
-                        onChange={(e) => setCoupon(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            applyCoupon();
-                          }
-                        }}
-                        placeholder="Enter coupon code"
-                        className="h-10 min-w-0 flex-1 rounded-lg border border-[#dfe5dc] bg-white px-3 text-xs outline-none transition-colors placeholder:text-[#9aa39b] focus:border-[#3f7d3f] focus:ring-2 focus:ring-[#3f7d3f]/10"
-                      />
+                    <>
+                      {coupons.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[#829086]">
+                            Available offers
+                          </p>
 
-                      <Button onClick={applyCoupon} variant="primary">
-                        Apply
-                      </Button>
-                    </div>
+                          {coupons.map((availableCoupon) => (
+                            <button
+                              key={availableCoupon.id || availableCoupon.code}
+                              type="button"
+                              onClick={() => {
+                                setCoupon(availableCoupon.code);
+                                applyCoupon(availableCoupon.code);
+                              }}
+                              className="flex w-full items-center justify-between rounded-lg border border-[#dfe8db] bg-white px-3 py-2 text-left transition-colors hover:border-[#9fbd98] hover:bg-[#f5faf3]"
+                            >
+                              <span>
+                                <span className="block text-xs font-bold text-[#286333]">
+                                  {availableCoupon.code}
+                                </span>
+                                <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                                  {availableCoupon.discountType?.toUpperCase() ===
+                                  "PERCENTAGE"
+                                    ? `${availableCoupon.discountValue}% off`
+                                    : `₹${availableCoupon.discountValue ?? availableCoupon.discount ?? 0} off`}
+                                  {availableCoupon.minimumOrderAmount
+                                    ? ` on orders above ₹${availableCoupon.minimumOrderAmount}`
+                                    : ""}
+                                </span>
+                              </span>
+                              <span className="text-[10px] font-bold text-[#3f7d3f]">
+                                Apply
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex gap-2">
+                        <input
+                          value={coupon}
+                          onChange={(e) => setCoupon(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              applyCoupon();
+                            }
+                          }}
+                          placeholder="Enter coupon code"
+                          className="h-10 min-w-0 flex-1 rounded-lg border border-[#dfe5dc] bg-white px-3 text-xs outline-none transition-colors placeholder:text-[#9aa39b] focus:border-[#3f7d3f] focus:ring-2 focus:ring-[#3f7d3f]/10"
+                        />
+
+                        <Button onClick={() => applyCoupon()} variant="primary">
+                          Apply
+                        </Button>
+                      </div>
+                    </>
                   )}
 
                   {couponError && (

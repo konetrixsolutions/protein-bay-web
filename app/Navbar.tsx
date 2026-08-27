@@ -76,6 +76,7 @@ const Navbar = () => {
   const [cartCount, setCartCount] = useState<number>(0);
 
   const menuRef = useRef<HTMLDivElement>(null);
+  const cartRequestRef = useRef(0);
 
   /* Close menu when clicking outside */
   useEffect(() => {
@@ -99,15 +100,25 @@ const Navbar = () => {
     setMenuOpen(false);
   }, [pathname]);
 
-  /* Load cart count  */
+  /* Load cart count */
   useEffect(() => {
     let mounted = true;
 
     const load = async () => {
+      const requestId = ++cartRequestRef.current;
+
       try {
         const count = await getCartCount();
-        if (mounted) setCartCount(count);
-      } catch (err) {}
+        if (mounted && requestId === cartRequestRef.current) {
+          setCartCount(count);
+        }
+      } catch (error) {
+        console.error("Navbar cart count error:", error);
+
+        if (mounted && requestId === cartRequestRef.current) {
+          setCartCount(0);
+        }
+      }
     };
 
     load();
@@ -122,7 +133,7 @@ const Navbar = () => {
       mounted = false;
       window.removeEventListener("cartUpdated", handler);
     };
-  }, []);
+  }, [pathname]);
 
   const router = useRouter();
 
