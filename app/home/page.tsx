@@ -61,6 +61,15 @@ interface HomeProduct {
   categoryId?: string;
 }
 
+interface CartApiItem {
+  id?: string;
+  quantity?: number | string;
+  productVariant?: { id?: string };
+  variant?: { id?: string };
+  productVariantId?: string;
+  variantId?: string;
+}
+
 const getCollection = <T,>(value: unknown): T[] => {
   if (Array.isArray(value)) {
     return value as T[];
@@ -161,11 +170,15 @@ const ProductCard = ({
   wishlistIds,
   onWishlist,
   onAddToCart,
+  quantity,
+  onUpdateQuantity,
 }: {
   product: HomeProduct;
   wishlistIds: Set<string>;
   onWishlist: (product: HomeProduct) => void;
   onAddToCart: (product: HomeProduct) => void;
+  quantity: number;
+  onUpdateQuantity: (product: HomeProduct, nextQuantity: number) => void;
 }) => {
   const isWishlisted = wishlistIds.has(product.variantId ?? "");
 
@@ -267,24 +280,56 @@ const ProductCard = ({
         {/* Buttons */}
 
         <div className="mt-4 flex gap-2">
-          <Button
-            disabled={!product.variantId}
-            onClick={() => onAddToCart(product)}
-            variant="primary"
-            className="flex h-10 flex-1 items-center justify-center gap-2  px-3 text-sm font-semibold text-white transition-all duration-200  disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Add to Cart
-          </Button>
+          {quantity > 0 ? (
+            <div className="flex h-10 flex-1 items-center justify-between rounded-xl border border-[#dfe6da] bg-[#f7faf5] px-2">
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateQuantity(product, Math.max(0, quantity - 1))
+                }
+                disabled={!product.variantId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-xl font-semibold text-[#173b1b] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
 
-          <button
-            type="button"
-            disabled={!product.variantId}
-            onClick={() => onAddToCart(product)}
-            aria-label="Add to cart"
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-primary transition-all duration-200 hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <ShoppingCart size={18} />
-          </button>
+              <span className="min-w-[32px] text-center text-sm font-bold text-[#173b1b]">
+                {quantity}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => onUpdateQuantity(product, quantity + 1)}
+                disabled={!product.variantId}
+                className="flex h-8 w-8 items-center justify-center rounded-md text-xl font-semibold text-[#173b1b] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+          ) : (
+            <Button
+              disabled={!product.variantId}
+              onClick={() => onAddToCart(product)}
+              variant="primary"
+              className="flex h-10 flex-1 items-center justify-center gap-2 px-3 text-sm font-semibold text-white transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Add to Cart
+            </Button>
+          )}
+
+          {!quantity && (
+            <button
+              type="button"
+              disabled={!product.variantId}
+              onClick={() => onAddToCart(product)}
+              aria-label="Add to cart"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border text-primary transition-all duration-200 hover:bg-primary hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ShoppingCart size={18} />
+            </button>
+          )}
         </div>
       </div>
     </article>
@@ -297,6 +342,8 @@ const ProductSection = ({
   wishlistIds,
   onWishlist,
   onAddToCart,
+  cartQuantities,
+  onUpdateQuantity,
   showViewAll = true,
 }: {
   title: string;
@@ -304,6 +351,8 @@ const ProductSection = ({
   wishlistIds: Set<string>;
   onWishlist: (product: HomeProduct) => void;
   onAddToCart: (product: HomeProduct) => void;
+  cartQuantities: Record<string, number>;
+  onUpdateQuantity: (product: HomeProduct, nextQuantity: number) => void;
   showViewAll?: boolean;
 }) => {
   if (!products.length) {
@@ -341,6 +390,10 @@ const ProductSection = ({
             wishlistIds={wishlistIds}
             onWishlist={onWishlist}
             onAddToCart={onAddToCart}
+            quantity={
+              product.variantId ? (cartQuantities[product.variantId] ?? 0) : 0
+            }
+            onUpdateQuantity={onUpdateQuantity}
           />
         ))}
       </div>
@@ -393,6 +446,10 @@ export default function Home() {
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
+  const [cartQuantities, setCartQuantities] = useState<Record<string, number>>(
+    {},
+  );
+  const [cartItemIds, setCartItemIds] = useState<Record<string, string>>({});
 
   const [search, setSearch] = useState("");
   const [activeSlide, setActiveSlide] = useState(0);
@@ -450,6 +507,44 @@ export default function Home() {
     }
   }, []);
 
+  const syncCartState = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API_URL}/cart`, {
+        withCredentials: true,
+      });
+
+      const cartItems = getCollection<CartApiItem>(response.data?.data);
+      const nextQuantities: Record<string, number> = {};
+      const nextItemIds: Record<string, string> = {};
+
+      cartItems.forEach((item) => {
+        const variantId =
+          item.productVariant?.id ??
+          item.variant?.id ??
+          item.productVariantId ??
+          item.variantId;
+
+        if (!variantId) {
+          return;
+        }
+
+        const quantity = Number(item.quantity ?? 1);
+        nextQuantities[variantId] = quantity;
+
+        if (item.id) {
+          nextItemIds[variantId] = item.id;
+        }
+      });
+
+      setCartQuantities(nextQuantities);
+      setCartItemIds(nextItemIds);
+    } catch (error) {
+      console.error("Cart sync error:", error);
+      setCartQuantities({});
+      setCartItemIds({});
+    }
+  }, []);
+
   useEffect(() => {
     const loadHomeData = async () => {
       setLoading(true);
@@ -459,6 +554,7 @@ export default function Home() {
           fetchProducts(),
           fetchCategories(),
           fetchWishlist(),
+          syncCartState(),
         ]);
       } finally {
         setLoading(false);
@@ -466,7 +562,7 @@ export default function Home() {
     };
 
     loadHomeData();
-  }, [fetchCategories, fetchProducts, fetchWishlist]);
+  }, [fetchCategories, fetchProducts, fetchWishlist, syncCartState]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -554,38 +650,74 @@ export default function Home() {
     }
   };
 
+  const updateCartQuantity = async (
+    product: HomeProduct,
+    nextQuantity: number,
+  ) => {
+    if (!product.variantId) {
+      toast.error("Product variant is unavailable.");
+      return;
+    }
+
+    const cartItemId = cartItemIds[product.variantId];
+
+    try {
+      if (nextQuantity <= 0) {
+        if (cartItemId) {
+          await axios.delete(`${API_URL}/cart/items/${cartItemId}`, {
+            withCredentials: true,
+          });
+        }
+      } else if (cartItemId) {
+        await axios.patch(
+          `${API_URL}/cart/items/${cartItemId}`,
+          { quantity: nextQuantity },
+          { withCredentials: true },
+        );
+      } else {
+        await axios.post(
+          `${API_URL}/cart/items`,
+          {
+            productVariantId: product.variantId,
+            quantity: nextQuantity,
+          },
+          { withCredentials: true },
+        );
+      }
+
+      await syncCartState();
+      window.dispatchEvent(new Event("cartUpdated"));
+
+      if (nextQuantity > 0) {
+        toast.success(`${product.name} quantity updated.`);
+      }
+    } catch (error) {
+      console.error("Update cart quantity error:", error);
+
+      if (axios.isAxiosError(error)) {
+        toast.error(
+          error.response?.data?.message || "Unable to update cart quantity.",
+        );
+      } else {
+        toast.error("Unable to update cart quantity.");
+      }
+    }
+  };
+
   const handleAddToCart = async (product: HomeProduct) => {
     if (!product.variantId) {
       toast.error("Product variant is unavailable.");
       return;
     }
 
-    try {
-      await axios.post(
-        `${API_URL}/cart/items`,
-        {
-          productVariantId: product.variantId,
-          quantity: 1,
-        },
-        {
-          withCredentials: true,
-        },
-      );
+    const currentQuantity = cartQuantities[product.variantId] ?? 0;
 
-      window.dispatchEvent(new Event("cartUpdated"));
-
-      toast.success(`${product.name} added to cart.`);
-    } catch (error) {
-      console.error("Add to cart error:", error);
-
-      if (axios.isAxiosError(error)) {
-        toast.error(
-          error.response?.data?.message || "Unable to add product to cart.",
-        );
-      } else {
-        toast.error("Unable to add product to cart.");
-      }
+    if (currentQuantity > 0) {
+      await updateCartQuantity(product, currentQuantity + 1);
+      return;
     }
+
+    await updateCartQuantity(product, 1);
   };
 
   const previousSlide = () => {
@@ -739,6 +871,8 @@ export default function Home() {
           wishlistIds={wishlistIds}
           onWishlist={handleWishlist}
           onAddToCart={handleAddToCart}
+          cartQuantities={cartQuantities}
+          onUpdateQuantity={updateCartQuantity}
         />
 
         {/* NEW ARRIVALS */}
@@ -749,6 +883,8 @@ export default function Home() {
           wishlistIds={wishlistIds}
           onWishlist={handleWishlist}
           onAddToCart={handleAddToCart}
+          cartQuantities={cartQuantities}
+          onUpdateQuantity={updateCartQuantity}
         />
 
         {/* UPCOMING PRODUCTS */}
@@ -760,6 +896,8 @@ export default function Home() {
             wishlistIds={wishlistIds}
             onWishlist={handleWishlist}
             onAddToCart={handleAddToCart}
+            cartQuantities={cartQuantities}
+            onUpdateQuantity={updateCartQuantity}
             showViewAll={false}
           />
         )}

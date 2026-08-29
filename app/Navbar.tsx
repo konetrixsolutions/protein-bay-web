@@ -31,7 +31,7 @@ type MenuItem = {
 const mainNavItems = [
   {
     label: "Home",
-    path: "/",
+    path: "/home",
   },
   {
     label: "Categories",
@@ -162,6 +162,8 @@ const Navbar = () => {
 
     router.push("/categories");
   };
+
+  console.log("pathname:", pathname);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-[#e7ece4] bg-[#fcfdf9]/95 backdrop-blur-xl">
