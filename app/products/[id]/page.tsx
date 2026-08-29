@@ -65,6 +65,7 @@ interface RelatedProduct {
 }
 
 const FALLBACK_IMAGE = "/images/cookie.jpg";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const DUMMY_IMAGES = [
   "/images/cookie.jpg",
   "/images/fb.png",
@@ -127,13 +128,10 @@ const ProductView = () => {
          * If the category id is available in the URL, use it directly.
          * Otherwise, fall back to the normal /products request.
          */
-        const productsResponse = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/products`,
-          {
-            params: categoryId ? { categoryId } : undefined,
-            withCredentials: true,
-          },
-        );
+        const productsResponse = await axios.get(`${API_URL}/products`, {
+          params: categoryId ? { categoryId } : undefined,
+          withCredentials: true,
+        });
 
         const rawProducts = productsResponse.data?.data;
 
@@ -281,7 +279,7 @@ const ProductView = () => {
       setAddingCart(true);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items`,
+        `${API_URL}/cart/items`,
         {
           productVariantId: selectedVariant.id,
           quantity,
@@ -329,7 +327,7 @@ const ProductView = () => {
       setBuyingNow(true);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items`,
+        `${API_URL}/cart/items`,
         {
           productVariantId: selectedVariant.id,
           quantity,
@@ -381,7 +379,7 @@ const ProductView = () => {
       setAddingWishlist(true);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/wishlist`,
+        `${API_URL}/wishlist`,
         {
           productVariantId: selectedVariant.id,
         },

@@ -51,6 +51,8 @@ const mainNavItems = [
   },
 ];
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 const menuItems: MenuItem[] = [
   {
     label: "My Referrals",
@@ -143,7 +145,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });

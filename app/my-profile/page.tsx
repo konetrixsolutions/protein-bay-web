@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Address = {
   id: string;
@@ -321,12 +322,12 @@ const MyProfile = () => {
   if (loading) {
     return (
       <main className="min-h-[70vh] bg-[#f7faf5] px-4 py-8 sm:px-8 lg:px-12">
-        <div className="mx-auto max-w-6xl animate-pulse space-y-6">
-          <div className="h-44 rounded-[28px] bg-[#e5ede1]" />
-          <div className="h-16 rounded-2xl bg-[#e5ede1]" />
+        <div className="mx-auto max-w-6xl space-y-6">
+          <Skeleton className="h-44 rounded-[28px]" />
+          <Skeleton className="h-16 rounded-2xl" />
           <div className="grid gap-5 md:grid-cols-2">
-            <div className="h-72 rounded-[24px] bg-[#e5ede1]" />
-            <div className="h-72 rounded-[24px] bg-[#e5ede1]" />
+            <Skeleton className="h-72 rounded-[24px]" />
+            <Skeleton className="h-72 rounded-[24px]" />
           </div>
         </div>
       </main>

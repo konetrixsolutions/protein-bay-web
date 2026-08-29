@@ -44,6 +44,8 @@ type Coupon = {
   expiresAt?: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 const Cart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
@@ -102,12 +104,9 @@ const Cart = () => {
   useEffect(() => {
     const fetchCoupons = async () => {
       try {
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/coupons`,
-          {
-            withCredentials: true,
-          },
-        );
+        const response = await axios.get(`${API_URL}/coupons`, {
+          withCredentials: true,
+        });
 
         const result = response.data;
 
@@ -163,7 +162,7 @@ const Cart = () => {
       setUpdatingItemId(itemId);
 
       await axios.patch(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items/${itemId}`,
+        `${API_URL}/cart/items/${itemId}`,
         {
           quantity: newQuantity,
         },
@@ -188,12 +187,9 @@ const Cart = () => {
     try {
       setUpdatingItemId(itemId);
 
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items/${itemId}`,
-        {
-          withCredentials: true,
-        },
-      );
+      await axios.delete(`${API_URL}/cart/items/${itemId}`, {
+        withCredentials: true,
+      });
 
       await fetchCartItems();
     } catch (error) {

@@ -83,6 +83,7 @@ interface ProductCard {
 }
 
 const FALLBACK_IMAGE = "/images/cookie.jpg";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const CategoriesContent = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -114,11 +115,11 @@ const CategoriesContent = () => {
       try {
         setLoading(true);
         const [categoriesResponse, productsResponse] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/categories`, {
+          axios.get(`${API_URL}/categories`, {
             withCredentials: true,
           }),
 
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
+          axios.get(`${API_URL}/products`, {
             withCredentials: true,
           }),
         ]);
@@ -363,7 +364,7 @@ const CategoriesContent = () => {
       setAddingCartId(product.id);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items`,
+        `${API_URL}/cart/items`,
         {
           productVariantId: product.variantId,
           quantity: 1,
@@ -415,7 +416,7 @@ const CategoriesContent = () => {
       setAddingWishlistId(product.id);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/wishlist`,
+        `${API_URL}/wishlist`,
         {
           productVariantId: product.variantId,
         },
@@ -1033,7 +1034,7 @@ const ProductCardView = ({
           router.push(`/products/${product.id}${categoryQuery}`);
         } catch (err) {}
       }}
-      className="group overflow-hidden rounded-2xl border border-[#dfe6da] bg-white shadow-[0_5px_20px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cdd8c8] hover:shadow-[0_15px_35px_rgba(23,59,27,0.09)]"
+      className="group cursor-pointer overflow-hidden rounded-2xl border border-[#dfe6da] bg-white shadow-[0_5px_20px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cdd8c8] hover:shadow-[0_15px_35px_rgba(23,59,27,0.09)]"
     >
       {/* Image */}
 

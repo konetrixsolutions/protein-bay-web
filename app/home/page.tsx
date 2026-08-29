@@ -16,6 +16,7 @@ import {
   User,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Category {
   id: string;
@@ -89,6 +90,7 @@ const getCollection = <T,>(value: unknown): T[] => {
 };
 
 const FALLBACK_IMAGES = ["/images/cookie.jpg"];
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const HERO_SLIDES = [
   {
@@ -173,7 +175,7 @@ const ProductCard = ({
       : 0;
 
   return (
-    <article className="group min-w-[220px] overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:min-w-0">
+    <article className="group min-w-[220px] cursor-pointer overflow-hidden rounded-2xl border border-border bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:min-w-0">
       {/* Product Image */}
 
       <div className="relative aspect-square overflow-hidden bg-[#f7f4e9]">
@@ -360,11 +362,11 @@ const HomeSkeleton = () => {
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <div className="h-12 rounded-xl bg-border" />
+        <Skeleton className="h-12 rounded-xl" />
 
-        <div className="mt-5 h-[260px] rounded-3xl bg-border sm:h-[390px]" />
+        <Skeleton className="mt-5 h-[260px] rounded-3xl sm:h-[390px]" />
 
-        <div className="mt-14 h-8 w-48 rounded bg-border" />
+        <Skeleton className="mt-14 h-8 w-48 rounded" />
 
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, index) => (
@@ -372,12 +374,12 @@ const HomeSkeleton = () => {
               key={index}
               className="overflow-hidden rounded-2xl border border-border bg-white"
             >
-              <div className="aspect-square bg-border" />
+              <Skeleton className="aspect-square rounded-none" />
 
               <div className="space-y-3 p-4">
-                <div className="h-5 rounded bg-border" />
-                <div className="h-4 w-2/3 rounded bg-border" />
-                <div className="h-10 rounded-xl bg-border" />
+                <Skeleton className="h-5 rounded" />
+                <Skeleton className="h-4 w-2/3 rounded" />
+                <Skeleton className="h-10 rounded-xl" />
               </div>
             </div>
           ))}
@@ -399,9 +401,7 @@ export default function Home() {
 
   const fetchProducts = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/products`,
-      );
+      const response = await axios.get(`${API_URL}/products`);
 
       const apiProducts = getCollection<ApiProduct>(response.data?.data);
 
@@ -418,9 +418,7 @@ export default function Home() {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/categories`,
-      );
+      const response = await axios.get(`${API_URL}/categories`);
 
       setCategories(getCollection<Category>(response.data?.data));
     } catch (error) {
@@ -431,12 +429,9 @@ export default function Home() {
 
   const fetchWishlist = useCallback(async () => {
     try {
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/wishlist`,
-        {
-          withCredentials: true,
-        },
-      );
+      const response = await axios.get(`${API_URL}/wishlist`, {
+        withCredentials: true,
+      });
 
       const wishlistData = getCollection<{
         productVariant?: ProductVariant;
@@ -530,7 +525,7 @@ export default function Home() {
       }
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/wishlist`,
+        `${API_URL}/wishlist`,
         {
           productVariantId: product.variantId,
         },
@@ -567,7 +562,7 @@ export default function Home() {
 
     try {
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items`,
+        `${API_URL}/cart/items`,
         {
           productVariantId: product.variantId,
           quantity: 1,

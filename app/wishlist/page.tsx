@@ -34,6 +34,8 @@ type WishlistItem = {
   badges: string[];
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 const Wishlist = () => {
   const router = useRouter();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
@@ -49,12 +51,9 @@ const Wishlist = () => {
       try {
         setLoading(true);
 
-        const response = await axios.get(
-          `${process.env.NEXT_PUBLIC_API_URL}/wishlist`,
-          {
-            withCredentials: true,
-          },
-        );
+        const response = await axios.get(`${API_URL}/wishlist`, {
+          withCredentials: true,
+        });
 
         console.log("Wishlist API response:", response.data);
 
@@ -124,12 +123,9 @@ const Wishlist = () => {
     try {
       setRemovingId(wishlistId);
 
-      await axios.delete(
-        `${process.env.NEXT_PUBLIC_API_URL}/wishlist/${wishlistId}`,
-        {
-          withCredentials: true,
-        },
-      );
+      await axios.delete(`${API_URL}/wishlist/${wishlistId}`, {
+        withCredentials: true,
+      });
 
       setWishlistItems((current) =>
         current.filter((item) => item.id !== wishlistId),
@@ -151,7 +147,7 @@ const Wishlist = () => {
   const handleAddToCart = async (item: WishlistItem) => {
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items`,
+        `${API_URL}/cart/items`,
         {
           productVariantId: item.variantId,
           quantity: 1,
