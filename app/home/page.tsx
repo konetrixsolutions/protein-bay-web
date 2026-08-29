@@ -572,8 +572,10 @@ export default function Home() {
     return () => clearInterval(interval);
   }, []);
 
+  const hasSearch = search.trim().length > 0;
+
   const filteredProducts = useMemo(() => {
-    if (!search.trim()) {
+    if (!hasSearch) {
       return products;
     }
 
@@ -584,7 +586,7 @@ export default function Home() {
         product.name.toLowerCase().includes(query) ||
         product.description.toLowerCase().includes(query),
     );
-  }, [products, search]);
+  }, [hasSearch, products, search]);
 
   const bestSellers = useMemo(() => {
     return [...filteredProducts]
@@ -741,7 +743,7 @@ export default function Home() {
       <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
         {/* SEARCH */}
 
-        <div className="mx-auto mt-4 flex max-w-3xl overflow-hidden rounded-xl border border-border bg-white shadow-sm focus-within:border-primary">
+        <div className="mx-auto mt-4 flex max-w-3xl overflow-hidden rounded-2xl border border-border bg-white shadow-[0_12px_30px_rgba(17,24,39,0.06)] ring-1 ring-[#edf1e7] transition-all focus-within:border-primary focus-within:shadow-[0_18px_40px_rgba(22,99,57,0.12)]">
           <div className="flex flex-1 items-center">
             <Search size={19} className="ml-4 shrink-0 text-muted-foreground" />
 
@@ -750,215 +752,271 @@ export default function Home() {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search for something..."
-              className="h-12 w-full bg-transparent px-3 text-sm outline-none"
+              className="h-12 w-full bg-transparent px-3 text-sm outline-none placeholder:text-muted-foreground/80"
             />
           </div>
 
-          {/* <button
-            type="button"
-            className="m-1 flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-white transition-colors hover:bg-primary-hover"
-          >
-            <Search size={17} />
-            <span className="hidden sm:inline">Search</span>
-          </button> */}
+          {hasSearch && (
+            <button
+              type="button"
+              onClick={() => setSearch("")}
+              className="mr-2 rounded-full px-3 text-xs font-semibold text-primary transition hover:bg-[#edf8ef]"
+            >
+              Clear
+            </button>
+          )}
         </div>
 
-        {/* HERO */}
+        {hasSearch ? (
+          <section className="mt-8 rounded-[28px] border border-[#edf3e8] bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.04)] sm:p-6">
+            <div className="flex flex-col gap-3 border-b border-[#edf1e7] pb-4 sm:flex-row sm:items-end sm:justify-between">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary/80">
+                  Search results
+                </p>
+                <h2 className="mt-2 text-2xl font-bold text-foreground sm:text-3xl">
+                  {filteredProducts.length > 0
+                    ? `Results for “${search.trim()}”`
+                    : `No results for “${search.trim()}”`}
+                </h2>
+              </div>
 
-        <section className="relative mt-5 overflow-hidden rounded-3xl bg-[#eef3df] shadow-sm">
-          <div className="relative min-h-[300px] sm:min-h-[380px] lg:min-h-[420px]">
-            {/* Background */}
+              {filteredProducts.length > 0 && (
+                <span className="inline-flex w-fit items-center rounded-full bg-[#edf5ed] px-3 py-1.5 text-xs font-semibold text-primary">
+                  {filteredProducts.length} item
+                  {filteredProducts.length > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
 
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-700"
-              style={{
-                backgroundImage: `url("${hero.image}")`,
-              }}
+            {filteredProducts.length > 0 ? (
+              <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+                {filteredProducts.map((product) => (
+                  <ProductCard
+                    key={`${product.id}-${product.variantId ?? "default"}`}
+                    product={product}
+                    wishlistIds={wishlistIds}
+                    onWishlist={handleWishlist}
+                    onAddToCart={handleAddToCart}
+                    quantity={
+                      product.variantId
+                        ? (cartQuantities[product.variantId] ?? 0)
+                        : 0
+                    }
+                    onUpdateQuantity={updateCartQuantity}
+                  />
+                ))}
+              </div>
+            ) : (
+              <div className="mt-8 rounded-3xl border border-dashed border-[#dfe8db] bg-[#f8faf6] p-8 text-center">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[#ecf7eb] text-primary">
+                  <Search size={24} />
+                </div>
+                <h3 className="mt-5 text-xl font-bold text-foreground">
+                  We couldn’t find a match
+                </h3>
+                <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+                  Try a different keyword or browse our curated collections to
+                  discover your next favorite nutrition product.
+                </p>
+                <div className="mt-5 flex flex-wrap justify-center gap-3">
+                  <a
+                    href="/categories"
+                    className="rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-primary-hover"
+                  >
+                    Explore categories
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setSearch("")}
+                    className="rounded-full border border-[#dfe8db] bg-white px-5 py-2.5 text-sm font-semibold text-foreground transition hover:border-primary hover:text-primary"
+                  >
+                    Clear search
+                  </button>
+                </div>
+              </div>
+            )}
+          </section>
+        ) : (
+          <>
+            <section className="relative mt-5 overflow-hidden rounded-3xl bg-[#eef3df] shadow-sm">
+              <div className="relative min-h-[300px] sm:min-h-[380px] lg:min-h-[420px]">
+                <div
+                  className="absolute inset-0 bg-cover bg-center transition-all duration-700"
+                  style={{
+                    backgroundImage: `url("${hero.image}")`,
+                  }}
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-r from-[#edf4dc]/95 via-[#edf4dc]/70 to-transparent" />
+
+                <div className="relative z-10 flex min-h-[300px] max-w-xl flex-col justify-center px-7 py-10 sm:min-h-[380px] sm:px-12 lg:min-h-[420px] lg:px-16">
+                  <span className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
+                    <Sparkles size={17} />
+                    ProteinBay Nutrition
+                  </span>
+
+                  <h1 className="max-w-xl text-3xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl">
+                    {hero.title}
+                  </h1>
+
+                  <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
+                    {hero.description}
+                  </p>
+
+                  <a
+                    href="/categories"
+                    className="mt-7 flex w-fit items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-primary-hover hover:shadow-lg"
+                  >
+                    Shop Now
+                    <ArrowRight size={18} />
+                  </a>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={previousSlide}
+                  className="absolute left-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:scale-105"
+                  aria-label="Previous slide"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={nextSlide}
+                  className="absolute right-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:scale-105"
+                  aria-label="Next slide"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+              <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
+                {HERO_SLIDES.map((slide, index) => (
+                  <button
+                    key={slide.image}
+                    type="button"
+                    onClick={() => setActiveSlide(index)}
+                    aria-label={`Go to slide ${index + 1}`}
+                    className={`h-2 rounded-full transition-all ${
+                      activeSlide === index
+                        ? "w-6 bg-primary"
+                        : "w-2 bg-primary/30"
+                    }`}
+                  />
+                ))}
+              </div>
+            </section>
+
+            {categories.length > 0 && (
+              <section className="mt-8">
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {categories.map((category) => (
+                    <a
+                      key={category.id}
+                      href={`/categories?categoryId=${category.id}`}
+                      className="shrink-0 rounded-full border border-border bg-white px-5 py-2.5 text-sm font-medium transition-all hover:border-primary hover:bg-primary-light hover:text-primary"
+                    >
+                      {category.name}
+                    </a>
+                  ))}
+                </div>
+              </section>
+            )}
+
+            <ProductSection
+              title="Best Sellers"
+              products={bestSellers}
+              wishlistIds={wishlistIds}
+              onWishlist={handleWishlist}
+              onAddToCart={handleAddToCart}
+              cartQuantities={cartQuantities}
+              onUpdateQuantity={updateCartQuantity}
             />
 
-            {/* Overlay */}
+            <ProductSection
+              title="New Arrivals"
+              products={newArrivals}
+              wishlistIds={wishlistIds}
+              onWishlist={handleWishlist}
+              onAddToCart={handleAddToCart}
+              cartQuantities={cartQuantities}
+              onUpdateQuantity={updateCartQuantity}
+            />
 
-            <div className="absolute inset-0 bg-gradient-to-r from-[#edf4dc]/95 via-[#edf4dc]/70 to-transparent" />
-
-            {/* Content */}
-
-            <div className="relative z-10 flex min-h-[300px] max-w-xl flex-col justify-center px-7 py-10 sm:min-h-[380px] sm:px-12 lg:min-h-[420px] lg:px-16">
-              <span className="mb-3 flex items-center gap-2 text-sm font-semibold text-primary">
-                <Sparkles size={17} />
-                ProteinBay Nutrition
-              </span>
-
-              <h1 className="max-w-xl text-3xl font-bold leading-tight text-foreground sm:text-5xl lg:text-6xl">
-                {hero.title}
-              </h1>
-
-              <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground sm:text-base">
-                {hero.description}
-              </p>
-
-              <a
-                href="/categories"
-                className="mt-7 flex w-fit items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white shadow-md transition-all hover:bg-primary-hover hover:shadow-lg"
-              >
-                Shop Now
-                <ArrowRight size={18} />
-              </a>
-            </div>
-
-            {/* Previous */}
-
-            <button
-              type="button"
-              onClick={previousSlide}
-              className="absolute left-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:scale-105"
-              aria-label="Previous slide"
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            {/* Next */}
-
-            <button
-              type="button"
-              onClick={nextSlide}
-              className="absolute right-3 top-1/2 z-20 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 shadow-md transition hover:scale-105"
-              aria-label="Next slide"
-            >
-              <ChevronRight size={20} />
-            </button>
-          </div>
-
-          {/* Dots */}
-
-          <div className="absolute bottom-4 left-1/2 z-20 flex -translate-x-1/2 gap-2">
-            {HERO_SLIDES.map((slide, index) => (
-              <button
-                key={slide.image}
-                type="button"
-                onClick={() => setActiveSlide(index)}
-                aria-label={`Go to slide ${index + 1}`}
-                className={`h-2 rounded-full transition-all ${
-                  activeSlide === index ? "w-6 bg-primary" : "w-2 bg-primary/30"
-                }`}
+            {upcomingProducts.length > 0 && (
+              <ProductSection
+                title="Upcoming"
+                products={upcomingProducts}
+                wishlistIds={wishlistIds}
+                onWishlist={handleWishlist}
+                onAddToCart={handleAddToCart}
+                cartQuantities={cartQuantities}
+                onUpdateQuantity={updateCartQuantity}
+                showViewAll={false}
               />
-            ))}
-          </div>
-        </section>
+            )}
 
-        {/* CATEGORY QUICK LINKS */}
+            <section className="mt-14 overflow-hidden rounded-3xl border border-border bg-[#f5f7eb]">
+              <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
+                {[
+                  {
+                    icon: Leaf,
+                    title: "Natural Ingredients",
+                    description: "Clean & Wholesome",
+                  },
+                  {
+                    icon: Sparkles,
+                    title: "No Preservatives",
+                    description: "100% Pure & Safe",
+                  },
+                  {
+                    icon: User,
+                    title: "Goal-Based Nutrition",
+                    description: "For Every Life Stage",
+                  },
+                  {
+                    icon: Leaf,
+                    title: "Millet Powered",
+                    description: "Ancient Grain Nutrition",
+                  },
+                  {
+                    icon: Heart,
+                    title: "Made in India",
+                    description: "Delivered With Love",
+                  },
+                  {
+                    icon: Sparkles,
+                    title: "Scientifically Curated",
+                    description: "Backed by Nutrition",
+                  },
+                ].map((feature) => {
+                  const Icon = feature.icon;
 
-        {categories.length > 0 && (
-          <section className="mt-8">
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
-              {categories.map((category) => (
-                <a
-                  key={category.id}
-                  href={`/categories?categoryId=${category.id}`}
-                  className="shrink-0 rounded-full border border-border bg-white px-5 py-2.5 text-sm font-medium transition-all hover:border-primary hover:bg-primary-light hover:text-primary"
-                >
-                  {category.name}
-                </a>
-              ))}
-            </div>
-          </section>
+                  return (
+                    <div
+                      key={feature.title}
+                      className="flex flex-col items-center justify-center px-4 py-6 text-center transition-colors hover:bg-white"
+                    >
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary shadow-sm">
+                        <Icon size={23} />
+                      </div>
+
+                      <h3 className="mt-3 text-sm font-bold">
+                        {feature.title}
+                      </h3>
+
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {feature.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          </>
         )}
-
-        {/* BEST SELLERS */}
-
-        <ProductSection
-          title="Best Sellers"
-          products={bestSellers}
-          wishlistIds={wishlistIds}
-          onWishlist={handleWishlist}
-          onAddToCart={handleAddToCart}
-          cartQuantities={cartQuantities}
-          onUpdateQuantity={updateCartQuantity}
-        />
-
-        {/* NEW ARRIVALS */}
-
-        <ProductSection
-          title="New Arrivals"
-          products={newArrivals}
-          wishlistIds={wishlistIds}
-          onWishlist={handleWishlist}
-          onAddToCart={handleAddToCart}
-          cartQuantities={cartQuantities}
-          onUpdateQuantity={updateCartQuantity}
-        />
-
-        {/* UPCOMING PRODUCTS */}
-
-        {upcomingProducts.length > 0 && (
-          <ProductSection
-            title="Upcoming"
-            products={upcomingProducts}
-            wishlistIds={wishlistIds}
-            onWishlist={handleWishlist}
-            onAddToCart={handleAddToCart}
-            cartQuantities={cartQuantities}
-            onUpdateQuantity={updateCartQuantity}
-            showViewAll={false}
-          />
-        )}
-
-        {/* WHY CHOOSE US */}
-
-        <section className="mt-14 overflow-hidden rounded-3xl border border-border bg-[#f5f7eb]">
-          <div className="grid grid-cols-2 divide-x divide-y divide-border sm:grid-cols-3 lg:grid-cols-6 lg:divide-y-0">
-            {[
-              {
-                icon: Leaf,
-                title: "Natural Ingredients",
-                description: "Clean & Wholesome",
-              },
-              {
-                icon: Sparkles,
-                title: "No Preservatives",
-                description: "100% Pure & Safe",
-              },
-              {
-                icon: User,
-                title: "Goal-Based Nutrition",
-                description: "For Every Life Stage",
-              },
-              {
-                icon: Leaf,
-                title: "Millet Powered",
-                description: "Ancient Grain Nutrition",
-              },
-              {
-                icon: Heart,
-                title: "Made in India",
-                description: "Delivered With Love",
-              },
-              {
-                icon: Sparkles,
-                title: "Scientifically Curated",
-                description: "Backed by Nutrition",
-              },
-            ].map((feature) => {
-              const Icon = feature.icon;
-
-              return (
-                <div
-                  key={feature.title}
-                  className="flex flex-col items-center justify-center px-4 py-6 text-center transition-colors hover:bg-white"
-                >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-primary shadow-sm">
-                    <Icon size={23} />
-                  </div>
-
-                  <h3 className="mt-3 text-sm font-bold">{feature.title}</h3>
-
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {feature.description}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </section>
       </div>
     </main>
   );
