@@ -120,6 +120,8 @@ interface SignupProps {
   onBackToLogin: () => void;
 }
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 export default function Signup({ onBackToLogin }: SignupProps) {
   const [showPassword, setShowPassword] = useState(false);
 
@@ -149,7 +151,7 @@ export default function Signup({ onBackToLogin }: SignupProps) {
   const handleSignup = async (data: SignupFormData) => {
     try {
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/signup`,
+        `${API_URL}/auth/signup`,
         {
           name: data.name.trim(),
           mobile: data.mobile,

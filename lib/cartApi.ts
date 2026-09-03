@@ -1,5 +1,7 @@
 import axios from "axios";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
 type RawCartItem = any;
 
 export type CartItem = {
@@ -14,13 +16,11 @@ export type CartItem = {
 };
 
 export async function getCartRaw() {
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "";
-
-  if (!API_BASE) {
+  if (!API_URL) {
     throw new Error("NEXT_PUBLIC_API_URL is not defined. Set it in your environment variables.");
   }
 
-  const response = await axios.get(`${API_BASE}/cart`, { withCredentials: true });
+  const response = await axios.get(`${API_URL}/cart`, { withCredentials: true });
   const result = response.data;
 
   if (!result?.success) {

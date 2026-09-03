@@ -82,7 +82,17 @@ interface ProductCard {
   variantName?: string;
 }
 
+interface CartApiItem {
+  id?: string;
+  quantity?: number | string;
+  productVariant?: { id?: string };
+  variant?: { id?: string };
+  productVariantId?: string;
+  variantId?: string;
+}
+
 const FALLBACK_IMAGE = "/images/cookie.jpg";
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const CategoriesContent = () => {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -95,6 +105,10 @@ const CategoriesContent = () => {
   const categoryIdFromUrl = searchParams.get("categoryId");
 
   const [wishlistIds, setWishlistIds] = useState<string[]>([]);
+  const [cartQuantities, setCartQuantities] = useState<Record<string, number>>(
+    {},
+  );
+  const [cartItemIds, setCartItemIds] = useState<Record<string, string>>({});
   const [search, setSearch] = useState("");
   const [selectedCategories, setSelectedCategories] = useState<string[]>(
     categoryIdFromUrl ? [categoryIdFromUrl] : [],
@@ -109,19 +123,84 @@ const CategoriesContent = () => {
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const router = useRouter();
 
+  const syncWishlistState = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/wishlist`, {
+        withCredentials: true,
+      });
+
+      const wishlistItems = (response.data?.data ?? []) as Array<{
+        productVariant?: { id?: string };
+        productVariantId?: string;
+      }>;
+
+      const nextWishlistIds = wishlistItems
+        .map((item) => item.productVariant?.id ?? item.productVariantId)
+        .filter((id): id is string => Boolean(id));
+
+      setWishlistIds(nextWishlistIds);
+    } catch (error) {
+      console.error("Wishlist sync error:", error);
+      setWishlistIds([]);
+    }
+  };
+
+  const syncCartState = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/cart`, {
+        withCredentials: true,
+      });
+
+      const cartItems = (response.data?.data?.items ??
+        response.data?.data ??
+        []) as CartApiItem[];
+
+      const nextQuantities: Record<string, number> = {};
+      const nextItemIds: Record<string, string> = {};
+
+      cartItems.forEach((item) => {
+        const variantId =
+          item?.productVariant?.id ??
+          item?.variant?.id ??
+          item?.productVariantId ??
+          item?.variantId;
+
+        if (!variantId) {
+          return;
+        }
+
+        const quantity = Number(item?.quantity ?? 1);
+        nextQuantities[variantId] = quantity;
+
+        if (item?.id) {
+          nextItemIds[variantId] = item.id;
+        }
+      });
+
+      setCartQuantities(nextQuantities);
+      setCartItemIds(nextItemIds);
+    } catch (error) {
+      console.error("Cart sync error:", error);
+      setCartQuantities({});
+      setCartItemIds({});
+    }
+  };
+
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
         const [categoriesResponse, productsResponse] = await Promise.all([
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/categories`, {
+          axios.get(`${API_URL}/categories`, {
             withCredentials: true,
           }),
 
-          axios.get(`${process.env.NEXT_PUBLIC_API_URL}/products`, {
+          axios.get(`${API_URL}/products`, {
             withCredentials: true,
           }),
         ]);
+
+        await Promise.all([syncCartState(), syncWishlistState()]);
 
         const categoryData = categoriesResponse.data?.data ?? [];
         setCategories(Array.isArray(categoryData) ? categoryData : []);
@@ -298,14 +377,9 @@ const CategoriesContent = () => {
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 12;
+  const pageSize = 8;
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
-
-  useEffect(() => {
-    // reset to first page whenever filters/search change
-    setCurrentPage(1);
-  }, [filteredProducts]);
 
   const paginatedProducts = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
@@ -353,32 +427,53 @@ const CategoriesContent = () => {
     setMaxPrice(priceLimit);
   };
 
-  const handleAddToCart = async (product: ProductCard) => {
+  const updateCartQuantity = async (
+    product: ProductCard,
+    nextQuantity: number,
+  ) => {
     if (!product.variantId) {
       toast.error("This product is currently unavailable.");
       return;
     }
 
+    const cartItemId = cartItemIds[product.variantId];
+
     try {
       setAddingCartId(product.id);
 
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/cart/items`,
-        {
-          productVariantId: product.variantId,
-          quantity: 1,
-        },
-        {
-          withCredentials: true,
-        },
-      );
+      if (nextQuantity <= 0) {
+        if (cartItemId) {
+          await axios.delete(`${API_URL}/cart/items/${cartItemId}`, {
+            withCredentials: true,
+          });
+        }
+      } else if (cartItemId) {
+        await axios.patch(
+          `${API_URL}/cart/items/${cartItemId}`,
+          { quantity: nextQuantity },
+          { withCredentials: true },
+        );
+      } else {
+        await axios.post(
+          `${API_URL}/cart/items`,
+          {
+            productVariantId: product.variantId,
+            quantity: nextQuantity,
+          },
+          { withCredentials: true },
+        );
+      }
 
-      toast.success(`${product.name} added to cart.`);
+      await syncCartState();
       try {
         window.dispatchEvent(new Event("cartUpdated"));
-      } catch (e) {}
+      } catch {}
+
+      if (nextQuantity > 0) {
+        toast.success(`${product.name} quantity updated.`);
+      }
     } catch (error) {
-      console.error("Add to cart error:", error);
+      console.error("Update cart quantity error:", error);
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
@@ -387,14 +482,30 @@ const CategoriesContent = () => {
         }
 
         toast.error(
-          error.response?.data?.message ?? "Unable to add product to cart.",
+          error.response?.data?.message ?? "Unable to update cart quantity.",
         );
       } else {
-        toast.error("Unable to add product to cart.");
+        toast.error("Unable to update cart quantity.");
       }
     } finally {
       setAddingCartId(null);
     }
+  };
+
+  const handleAddToCart = async (product: ProductCard) => {
+    if (!product.variantId) {
+      toast.error("This product is currently unavailable.");
+      return;
+    }
+
+    const currentQuantity = cartQuantities[product.variantId] ?? 0;
+
+    if (currentQuantity > 0) {
+      await updateCartQuantity(product, currentQuantity + 1);
+      return;
+    }
+
+    await updateCartQuantity(product, 1);
   };
 
   const handleAddToWishlist = async (product: ProductCard) => {
@@ -415,7 +526,7 @@ const CategoriesContent = () => {
       setAddingWishlistId(product.id);
 
       await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/wishlist`,
+        `${API_URL}/wishlist`,
         {
           productVariantId: product.variantId,
         },
@@ -650,8 +761,16 @@ const CategoriesContent = () => {
                       !!product.variantId &&
                       wishlistIds.includes(product.variantId)
                     }
+                    quantity={
+                      product.variantId
+                        ? (cartQuantities[product.variantId] ?? 0)
+                        : 0
+                    }
                     onAddToCart={() => handleAddToCart(product)}
                     onAddToWishlist={() => handleAddToWishlist(product)}
+                    onUpdateQuantity={(nextQuantity) =>
+                      updateCartQuantity(product, nextQuantity)
+                    }
                   />
                 ))}
               </div>
@@ -670,8 +789,8 @@ const CategoriesContent = () => {
                 <PaginationItem>
                   <PaginationPrevious
                     href="#"
-                    onClick={(e: any) => {
-                      e.preventDefault();
+                    onClick={(event) => {
+                      event.preventDefault();
                       setCurrentPage((p) => Math.max(1, p - 1));
                     }}
                   />
@@ -697,8 +816,8 @@ const CategoriesContent = () => {
                         <PaginationLink
                           href="#"
                           isActive={page === currentPage}
-                          onClick={(e: any) => {
-                            e.preventDefault();
+                          onClick={(event) => {
+                            event.preventDefault();
                             setCurrentPage(page);
                           }}
                         >
@@ -714,8 +833,8 @@ const CategoriesContent = () => {
                 <PaginationItem>
                   <PaginationNext
                     href="#"
-                    onClick={(e: any) => {
-                      e.preventDefault();
+                    onClick={(event) => {
+                      event.preventDefault();
                       setCurrentPage((p) => Math.min(totalPages, p + 1));
                     }}
                   />
@@ -995,8 +1114,10 @@ interface ProductCardViewProps {
   adding: boolean;
   wishlistAdding: boolean;
   wishlisted: boolean;
+  quantity: number;
   onAddToCart: () => void;
   onAddToWishlist: () => void;
+  onUpdateQuantity: (nextQuantity: number) => void;
 }
 
 const ProductCardView = ({
@@ -1004,8 +1125,10 @@ const ProductCardView = ({
   adding,
   wishlistAdding,
   wishlisted,
+  quantity,
   onAddToCart,
   onAddToWishlist,
+  onUpdateQuantity,
 }: ProductCardViewProps) => {
   const router = useRouter();
   const discount =
@@ -1031,9 +1154,9 @@ const ProductCardView = ({
             : "";
 
           router.push(`/products/${product.id}${categoryQuery}`);
-        } catch (err) {}
+        } catch {}
       }}
-      className="group overflow-hidden rounded-2xl border border-[#dfe6da] bg-white shadow-[0_5px_20px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cdd8c8] hover:shadow-[0_15px_35px_rgba(23,59,27,0.09)]"
+      className="group cursor-pointer overflow-hidden rounded-2xl border border-[#dfe6da] bg-white shadow-[0_5px_20px_rgba(23,59,27,0.04)] transition-all duration-300 hover:-translate-y-1 hover:border-[#cdd8c8] hover:shadow-[0_15px_35px_rgba(23,59,27,0.09)]"
     >
       {/* Image */}
 
@@ -1060,7 +1183,11 @@ const ProductCardView = ({
           aria-label={wishlisted ? "Added to wishlist" : "Add to wishlist"}
           onClick={onAddToWishlist}
           disabled={wishlistAdding || wishlisted}
-          className="absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border border-[#dfe6da] bg-white/95 text-[#657267] shadow-sm transition-all hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-70"
+          className={`absolute right-2.5 top-2.5 z-10 flex h-8 w-8 items-center justify-center rounded-full border shadow-sm transition-all hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-70 ${
+            wishlisted
+              ? "border-primary bg-[#edf4e9] text-primary"
+              : "border-[#dfe6da] bg-white/95 text-[#657267]"
+          }`}
         >
           <FiHeart
             size={17}
@@ -1135,29 +1262,59 @@ const ProductCardView = ({
         {/* Buttons */}
 
         <div className="mt-3 flex gap-2">
-          <Button
-            onClick={onAddToCart}
-            disabled={adding}
-            variant="primary"
-            className="flex h-9 flex-1 items-center justify-center gap-1.5 px-2 text-xs font-semibold  transition-all  disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
-          >
-            {adding ? (
-              "Adding..."
-            ) : (
-              <>
-                <span>Add to Cart</span>
-              </>
-            )}
-          </Button>
+          {quantity > 0 ? (
+            <div className="flex h-9 flex-1 items-center justify-between rounded-lg border border-[#dfe6da] bg-[#f7faf5] px-2">
+              <button
+                type="button"
+                onClick={() => onUpdateQuantity(Math.max(0, quantity - 1))}
+                disabled={adding}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold text-[#173b1b] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Decrease quantity"
+              >
+                −
+              </button>
 
-          <Button
-            onClick={onAddToCart}
-            disabled={adding}
-            aria-label="Add to cart"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#dfe6da] bg-white text-primary transition-all hover:border-primary hover:bg-[#edf4e9] disabled:opacity-60"
-          >
-            <FiShoppingCart size={17} />
-          </Button>
+              <span className="min-w-[32px] text-center text-sm font-bold text-[#173b1b]">
+                {quantity}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => onUpdateQuantity(quantity + 1)}
+                disabled={adding}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-lg font-semibold text-[#173b1b] transition-colors hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+                aria-label="Increase quantity"
+              >
+                +
+              </button>
+            </div>
+          ) : (
+            <Button
+              onClick={onAddToCart}
+              disabled={adding}
+              variant="primary"
+              className="flex h-9 flex-1 items-center justify-center gap-1.5 px-2 text-xs font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-60 sm:text-sm"
+            >
+              {adding ? (
+                "Adding..."
+              ) : (
+                <>
+                  <span>Add to Cart</span>
+                </>
+              )}
+            </Button>
+          )}
+
+          {!quantity && (
+            <Button
+              onClick={onAddToCart}
+              disabled={adding}
+              aria-label="Add to cart"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#dfe6da] bg-white text-primary transition-all hover:border-primary hover:bg-[#edf4e9] disabled:opacity-60"
+            >
+              <FiShoppingCart size={17} />
+            </Button>
+          )}
         </div>
       </div>
     </div>

@@ -25,6 +25,8 @@ type Referral = {
   redeemedDate?: string;
 };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
+
 type RedemptionHistory = {
   id: string;
   amount: number;
@@ -95,12 +97,9 @@ const MyReferrals = () => {
       setLoading(true);
       setError("");
 
-      const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/referrals`,
-        {
-          withCredentials: true,
-        },
-      );
+      const response = await axios.get(`${API_URL}/referrals`, {
+        withCredentials: true,
+      });
       const result = response.data;
       if (!result?.success) {
         throw new Error(
@@ -194,7 +193,7 @@ const MyReferrals = () => {
   const fetchRedemptionHistory = async () => {
     try {
       const response = await axios.get(
-        `${process.env.NEXT_PUBLIC_API_URL}/referrals/redemption-history`,
+        `${API_URL}/referrals/redemption-history`,
         {
           withCredentials: true,
         },
@@ -312,7 +311,7 @@ const MyReferrals = () => {
     try {
       setRedeeming(true);
       const response = await axios.post(
-        `${process.env.NEXT_PUBLIC_API_URL}/referrals/redemptions`,
+        `${API_URL}/referrals/redemptions`,
         payload,
         {
           withCredentials: true,

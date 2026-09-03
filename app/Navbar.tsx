@@ -31,7 +31,7 @@ type MenuItem = {
 const mainNavItems = [
   {
     label: "Home",
-    path: "/",
+    path: "/home",
   },
   {
     label: "Categories",
@@ -50,6 +50,8 @@ const mainNavItems = [
     path: "/my-orders",
   },
 ];
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const menuItems: MenuItem[] = [
   {
@@ -143,7 +145,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
+      await fetch(`${API_URL}/auth/logout`, {
         method: "POST",
         credentials: "include",
       });
@@ -160,6 +162,8 @@ const Navbar = () => {
 
     router.push("/categories");
   };
+
+  console.log("pathname:", pathname);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-[#e7ece4] bg-[#fcfdf9]/95 backdrop-blur-xl">
