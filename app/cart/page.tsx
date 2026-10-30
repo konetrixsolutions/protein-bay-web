@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import { FaLock, FaRegTrashAlt, FaShieldAlt, FaTag } from "react-icons/fa";
 import { FiGift, FiInfo } from "react-icons/fi";
@@ -12,6 +13,11 @@ import { MdOutlineLocalShipping } from "react-icons/md";
 import { Button } from "@/components/ui/button";
 import axios from "axios";
 import { getCartItems } from "@/lib/cartApi";
+import {
+  hasAuthSession,
+  redirectToLogin,
+  requireAuthentication,
+} from "@/lib/authSession";
 
 type CartItem = {
   id: string;
@@ -47,6 +53,7 @@ type Coupon = {
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 const Cart = () => {
+  const router = useRouter();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const [coupon, setCoupon] = useState("");
@@ -74,6 +81,11 @@ const Cart = () => {
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
 
   const fetchCartItems = async () => {
+    const action = { kind: "navigate" as const, returnTo: "/cart" as const };
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
+
     try {
       const cartData = await getCartItems();
 
@@ -86,6 +98,11 @@ const Cart = () => {
         window.dispatchEvent(new Event("cartUpdated"));
       } catch (e) {}
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        redirectToLogin(router, action);
+        return;
+      }
+
       console.error("Cart items error:", error);
 
       setCartItems([]);
@@ -105,6 +122,10 @@ const Cart = () => {
 
   useEffect(() => {
     const fetchCoupons = async () => {
+      if (!hasAuthSession()) {
+        return;
+      }
+
       try {
         const response = await axios.get(`${API_URL}/coupons`, {
           withCredentials: true,
@@ -122,6 +143,14 @@ const Cart = () => {
 
         setCoupons(couponData);
       } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          redirectToLogin(router, {
+            kind: "navigate",
+            returnTo: "/cart",
+          });
+          return;
+        }
+
         console.error("Coupons error:", error);
         setCoupons([]);
       }

@@ -32,6 +32,14 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  checkAuthSession,
+  clearAuthSession,
+  currentReturnPath,
+  hasAuthSession,
+  redirectToLogin,
+  requireAuthentication,
+} from "@/lib/authSession";
 
 interface Category {
   id: string;
@@ -140,6 +148,12 @@ const CategoriesContent = () => {
 
       setWishlistIds(nextWishlistIds);
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        clearAuthSession();
+        setWishlistIds([]);
+        return;
+      }
+
       console.error("Wishlist sync error:", error);
       setWishlistIds([]);
     }
@@ -180,6 +194,13 @@ const CategoriesContent = () => {
       setCartQuantities(nextQuantities);
       setCartItemIds(nextItemIds);
     } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        clearAuthSession();
+        setCartQuantities({});
+        setCartItemIds({});
+        return;
+      }
+
       console.error("Cart sync error:", error);
       setCartQuantities({});
       setCartItemIds({});
@@ -200,7 +221,9 @@ const CategoriesContent = () => {
           }),
         ]);
 
-        await Promise.all([syncCartState(), syncWishlistState()]);
+        if (await checkAuthSession()) {
+          await Promise.all([syncCartState(), syncWishlistState()]);
+        }
 
         const categoryData = categoriesResponse.data?.data ?? [];
         setCategories(Array.isArray(categoryData) ? categoryData : []);
@@ -430,6 +453,7 @@ const CategoriesContent = () => {
   const updateCartQuantity = async (
     product: ProductCard,
     nextQuantity: number,
+    mode: "add" | "set" = "set",
   ) => {
     if (!product.variantId) {
       toast.error("This product is currently unavailable.");
@@ -437,6 +461,18 @@ const CategoriesContent = () => {
     }
 
     const cartItemId = cartItemIds[product.variantId];
+    const action = {
+      kind: "cart" as const,
+      productVariantId: product.variantId,
+      quantity: nextQuantity,
+      mode: hasAuthSession() ? "set" : mode,
+      cartItemId,
+      returnTo: currentReturnPath(),
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
 
     try {
       setAddingCartId(product.id);
@@ -477,7 +513,7 @@ const CategoriesContent = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          router.push("/auth/login");
+          redirectToLogin(router, action);
           return;
         }
 
@@ -499,13 +535,11 @@ const CategoriesContent = () => {
     }
 
     const currentQuantity = cartQuantities[product.variantId] ?? 0;
-
-    if (currentQuantity > 0) {
-      await updateCartQuantity(product, currentQuantity + 1);
-      return;
-    }
-
-    await updateCartQuantity(product, 1);
+    await updateCartQuantity(
+      product,
+      currentQuantity + 1,
+      "add",
+    );
   };
 
   const handleAddToWishlist = async (product: ProductCard) => {
@@ -519,6 +553,16 @@ const CategoriesContent = () => {
     }
 
     if (wishlistIds.includes(product.variantId)) {
+      return;
+    }
+
+    const action = {
+      kind: "wishlist" as const,
+      productVariantId: product.variantId,
+      returnTo: currentReturnPath(),
+    };
+
+    if (!(await requireAuthentication(router, action))) {
       return;
     }
 
@@ -549,7 +593,7 @@ const CategoriesContent = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          router.push("/auth/login");
+          redirectToLogin(router, action);
           return;
         }
 

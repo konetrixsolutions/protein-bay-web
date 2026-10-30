@@ -18,6 +18,13 @@ import {
 import { FaLeaf, FaFlask, FaHeart, FaShieldAlt, FaStar } from "react-icons/fa";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
+import {
+  clearAuthSession,
+  checkAuthSession,
+  currentReturnPath,
+  redirectToLogin,
+  requireAuthentication,
+} from "@/lib/authSession";
 
 interface ProductVariant {
   id: string;
@@ -111,6 +118,50 @@ const ProductView = () => {
   const [isZoomed, setIsZoomed] = useState(false);
 
   const imageContainerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!selectedVariantId) {
+      return;
+    }
+
+    let active = true;
+
+    const fetchWishlistState = async () => {
+      try {
+        if (!(await checkAuthSession())) {
+          return;
+        }
+
+        const response = await axios.get(`${API_URL}/wishlist`, {
+          withCredentials: true,
+        });
+        const items = response.data?.data;
+        const isVariantWishlisted =
+          Array.isArray(items) &&
+          items.some(
+            (item: { productVariant?: { id?: string }; productVariantId?: string }) =>
+              (item.productVariant?.id ?? item.productVariantId) ===
+              selectedVariantId,
+          );
+
+        if (active) {
+          setIsWishlisted(isVariantWishlisted);
+        }
+      } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          clearAuthSession();
+        } else {
+          console.error("Wishlist state error:", error);
+        }
+      }
+    };
+
+    fetchWishlistState();
+
+    return () => {
+      active = false;
+    };
+  }, [selectedVariantId]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -275,6 +326,18 @@ const ProductView = () => {
       return;
     }
 
+    const action = {
+      kind: "cart" as const,
+      productVariantId: selectedVariant.id,
+      quantity,
+      mode: "add" as const,
+      returnTo: currentReturnPath(),
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
+
     try {
       setAddingCart(true);
 
@@ -302,7 +365,7 @@ const ProductView = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          router.push("/auth/login");
+          redirectToLogin(router, action);
           return;
         }
 
@@ -320,6 +383,18 @@ const ProductView = () => {
   const handleBuyNow = async () => {
     if (!selectedVariant?.id) {
       toast.error("Please select a product variant.");
+      return;
+    }
+
+    const action = {
+      kind: "cart" as const,
+      productVariantId: selectedVariant.id,
+      quantity,
+      mode: "add" as const,
+      returnTo: "/cart",
+    };
+
+    if (!(await requireAuthentication(router, action))) {
       return;
     }
 
@@ -350,7 +425,7 @@ const ProductView = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          router.push("/auth/login");
+          redirectToLogin(router, action);
           return;
         }
 
@@ -375,6 +450,16 @@ const ProductView = () => {
       return;
     }
 
+    const action = {
+      kind: "wishlist" as const,
+      productVariantId: selectedVariant.id,
+      returnTo: currentReturnPath(),
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
+
     try {
       setAddingWishlist(true);
 
@@ -396,7 +481,7 @@ const ProductView = () => {
 
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 401) {
-          router.push("/auth/login");
+          redirectToLogin(router, action);
           return;
         }
 
