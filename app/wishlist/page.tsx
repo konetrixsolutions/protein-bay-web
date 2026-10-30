@@ -11,6 +11,11 @@ import { IoClose } from "react-icons/io5";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToastContainer, toast } from "react-toastify";
+import {
+  clearAuthSession,
+  redirectToLogin,
+  requireAuthentication,
+} from "@/lib/authSession";
 
 type WishlistItem = {
   id: string;
@@ -48,6 +53,15 @@ const Wishlist = () => {
 
   useEffect(() => {
     const fetchWishlist = async () => {
+      const action = {
+        kind: "navigate" as const,
+        returnTo: "/wishlist" as const,
+      };
+
+      if (!(await requireAuthentication(router, action))) {
+        return;
+      }
+
       try {
         setLoading(true);
 
@@ -99,6 +113,12 @@ const Wishlist = () => {
 
         setWishlistItems(mappedItems);
       } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          clearAuthSession();
+          redirectToLogin(router, action);
+          return;
+        }
+
         if (axios.isAxiosError(error)) {
           console.error(
             "Wishlist API error:",
@@ -120,6 +140,15 @@ const Wishlist = () => {
   //  REMOVE FROM WISHLIST
 
   const removeFromWishlist = async (wishlistId: string) => {
+    const action = {
+      kind: "navigate" as const,
+      returnTo: "/wishlist" as const,
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
+
     try {
       setRemovingId(wishlistId);
 
@@ -132,6 +161,12 @@ const Wishlist = () => {
       );
     } catch (error) {
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          clearAuthSession();
+          redirectToLogin(router, action);
+          return;
+        }
+
         console.error(
           "Remove wishlist error:",
           error.response?.data || error.message,
@@ -145,6 +180,18 @@ const Wishlist = () => {
   };
 
   const handleAddToCart = async (item: WishlistItem) => {
+    const action = {
+      kind: "cart" as const,
+      productVariantId: item.variantId,
+      quantity: 1,
+      mode: "add" as const,
+      returnTo: "/wishlist",
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
+
     try {
       const response = await axios.post(
         `${API_URL}/cart/items`,
@@ -172,7 +219,7 @@ const Wishlist = () => {
         );
 
         if (error.response?.status === 401) {
-          router.push("/auth/login");
+          redirectToLogin(router, action);
           return;
         }
 

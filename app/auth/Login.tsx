@@ -183,6 +183,11 @@ import { Input } from "@/components/ui/input";
 import Signup from "./LoginOtp";
 import { useRouter } from "next/navigation";
 import axios from "axios";
+import {
+  consumePendingAuthAction,
+  getSafeReturnPath,
+  markAuthenticated,
+} from "@/lib/authSession";
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showSignup, setShowSignup] = useState(false);
@@ -209,7 +214,85 @@ export default function Login() {
       );
 
       if (response.data.success) {
-        router.push("/cart");
+        markAuthenticated();
+
+        const action = consumePendingAuthAction();
+        if (action?.kind === "cart") {
+          const cartResponse = await axios.get(`${API_URL}/cart`, {
+            withCredentials: true,
+          });
+          const cartItems = cartResponse.data?.data?.items;
+          const existingItem = Array.isArray(cartItems)
+            ? cartItems.find(
+                (item: {
+                  id?: string;
+                  quantity?: number | string;
+                  variant?: { id?: string };
+                  productVariant?: { id?: string };
+                  productVariantId?: string;
+                }) =>
+                  (item.variant?.id ??
+                    item.productVariant?.id ??
+                    item.productVariantId) === action.productVariantId,
+              )
+            : undefined;
+          const cartItemId = action.cartItemId ?? existingItem?.id;
+
+          if (action.mode === "set" && action.quantity <= 0) {
+            if (cartItemId) {
+              await axios.delete(`${API_URL}/cart/items/${cartItemId}`, {
+                withCredentials: true,
+              });
+            }
+          } else if (cartItemId) {
+            const currentQuantity = Number(existingItem?.quantity ?? 0);
+            const quantity =
+              action.mode === "add"
+                ? currentQuantity + action.quantity
+                : action.quantity;
+            await axios.patch(
+              `${API_URL}/cart/items/${cartItemId}`,
+              { quantity },
+              { withCredentials: true },
+            );
+          } else if (action.quantity > 0) {
+            await axios.post(
+              `${API_URL}/cart/items`,
+              {
+                productVariantId: action.productVariantId,
+                quantity: action.quantity,
+              },
+              { withCredentials: true },
+            );
+          }
+
+          window.dispatchEvent(new Event("cartUpdated"));
+        } else if (action?.kind === "wishlist") {
+          const wishlistResponse = await axios.get(`${API_URL}/wishlist`, {
+            withCredentials: true,
+          });
+          const wishlistItems = wishlistResponse.data?.data;
+          const alreadyWishlisted =
+            Array.isArray(wishlistItems) &&
+            wishlistItems.some(
+              (item: {
+                productVariant?: { id?: string };
+                productVariantId?: string;
+              }) =>
+                (item.productVariant?.id ?? item.productVariantId) ===
+                action.productVariantId,
+            );
+
+          if (!alreadyWishlisted) {
+            await axios.post(
+              `${API_URL}/wishlist`,
+              { productVariantId: action.productVariantId },
+              { withCredentials: true },
+            );
+          }
+        }
+
+        router.replace(getSafeReturnPath(action?.returnTo ?? "/cart"));
       }
     } catch (error) {
       if (axios.isAxiosError(error)) {

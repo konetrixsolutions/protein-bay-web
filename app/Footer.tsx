@@ -42,13 +42,15 @@ const Footer = () => {
           {/* Brand Section */}
           <div>
             <Link href="/" className="inline-block">
-              <Image
-                src="/images/logo.png"
-                alt="ProteinBay"
-                width={190}
-                height={60}
-                className="object-contain"
-              />
+              <span className="relative block h-[60px] w-[190px]">
+                <Image
+                  src="/images/logo.png"
+                  alt="ProteinBay"
+                  fill
+                  sizes="190px"
+                  className="object-contain"
+                />
+              </span>
             </Link>
 
             <p className="mt-6 max-w-sm text-[15px] leading-7 text-[#66736a]">

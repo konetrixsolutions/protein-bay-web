@@ -6,13 +6,14 @@ First, run the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+
+The development script uses Webpack to avoid the Turbopack panic seen in this
+workspace. Run the API separately from `..\protien-bay-api` with `npm run dev`.
+
+Browsing products and categories is public. Cart and wishlist actions require
+login; if a guest starts one of those actions, it resumes after successful
+login.
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 

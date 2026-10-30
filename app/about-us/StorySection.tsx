@@ -45,6 +45,7 @@ const StorySection = () => {
             alt="Our Story"
             width={700}
             height={550}
+            loading="eager"
             className="w-full object-cover"
           />
         </div>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { toast } from "react-toastify";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   ChevronLeft,
@@ -17,6 +18,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  checkAuthSession,
+  clearAuthSession,
+  currentReturnPath,
+  hasAuthSession,
+  redirectToLogin,
+  requireAuthentication,
+} from "@/lib/authSession";
 
 interface Category {
   id: string;
@@ -114,7 +123,7 @@ const HERO_SLIDES = [
       "Clean ingredients crafted for your everyday wellness journey.",
   },
   {
-    image: "/images/hero-3.png",
+    image: "/images/right_image_1.png",
     title: "Nutrition For Every Goal",
     description:
       "Power your fitness journey with delicious, goal-based nutrition.",
@@ -443,6 +452,7 @@ const HomeSkeleton = () => {
 };
 
 export default function Home() {
+  const router = useRouter();
   const [products, setProducts] = useState<HomeProduct[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
@@ -503,7 +513,12 @@ export default function Home() {
 
       setWishlistIds(ids);
     } catch (error) {
-      console.error("Wishlist error:", error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        clearAuthSession();
+        setWishlistIds(new Set<string>());
+      } else {
+        console.error("Wishlist error:", error);
+      }
     }
   }, []);
 
@@ -539,7 +554,11 @@ export default function Home() {
       setCartQuantities(nextQuantities);
       setCartItemIds(nextItemIds);
     } catch (error) {
-      console.error("Cart sync error:", error);
+      if (axios.isAxiosError(error) && error.response?.status === 401) {
+        clearAuthSession();
+      } else {
+        console.error("Cart sync error:", error);
+      }
       setCartQuantities({});
       setCartItemIds({});
     }
@@ -550,12 +569,16 @@ export default function Home() {
       setLoading(true);
 
       try {
-        await Promise.all([
-          fetchProducts(),
-          fetchCategories(),
-          fetchWishlist(),
-          syncCartState(),
-        ]);
+        const requests = [fetchProducts(), fetchCategories()];
+
+        if (await checkAuthSession()) {
+          requests.push(fetchWishlist(), syncCartState());
+        }
+
+        await Promise.all(requests);
+      } catch (error) {
+        console.error("Home data error:", error);
+        toast.error("Unable to verify your account or load home data.");
       } finally {
         setLoading(false);
       }
@@ -615,6 +638,15 @@ export default function Home() {
     }
 
     const alreadyWishlisted = wishlistIds.has(product.variantId);
+    const action = {
+      kind: "wishlist" as const,
+      productVariantId: product.variantId,
+      returnTo: currentReturnPath(),
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
 
     try {
       if (alreadyWishlisted) {
@@ -643,6 +675,11 @@ export default function Home() {
       console.error("Wishlist error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          redirectToLogin(router, action);
+          return;
+        }
+
         toast.error(
           error.response?.data?.message || "Unable to update wishlist.",
         );
@@ -655,6 +692,7 @@ export default function Home() {
   const updateCartQuantity = async (
     product: HomeProduct,
     nextQuantity: number,
+    mode: "add" | "set" = "set",
   ) => {
     if (!product.variantId) {
       toast.error("Product variant is unavailable.");
@@ -662,6 +700,18 @@ export default function Home() {
     }
 
     const cartItemId = cartItemIds[product.variantId];
+    const action = {
+      kind: "cart" as const,
+      productVariantId: product.variantId,
+      quantity: nextQuantity,
+      mode: hasAuthSession() ? "set" : mode,
+      cartItemId,
+      returnTo: currentReturnPath(),
+    };
+
+    if (!(await requireAuthentication(router, action))) {
+      return;
+    }
 
     try {
       if (nextQuantity <= 0) {
@@ -697,6 +747,11 @@ export default function Home() {
       console.error("Update cart quantity error:", error);
 
       if (axios.isAxiosError(error)) {
+        if (error.response?.status === 401) {
+          redirectToLogin(router, action);
+          return;
+        }
+
         toast.error(
           error.response?.data?.message || "Unable to update cart quantity.",
         );
@@ -713,13 +768,11 @@ export default function Home() {
     }
 
     const currentQuantity = cartQuantities[product.variantId] ?? 0;
-
-    if (currentQuantity > 0) {
-      await updateCartQuantity(product, currentQuantity + 1);
-      return;
-    }
-
-    await updateCartQuantity(product, 1);
+    await updateCartQuantity(
+      product,
+      currentQuantity + 1,
+      "add",
+    );
   };
 
   const previousSlide = () => {

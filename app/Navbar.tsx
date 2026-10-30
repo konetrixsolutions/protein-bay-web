@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import axios from "axios";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
@@ -18,6 +19,11 @@ import { PiShoppingCartBold } from "react-icons/pi";
 import { FiHeadphones } from "react-icons/fi";
 import { IoChevronForward } from "react-icons/io5";
 import { getCartCount } from "@/lib/cartApi";
+import {
+  checkAuthSession,
+  clearAuthSession,
+  requireAuthentication,
+} from "@/lib/authSession";
 
 type MenuItem = {
   label: string;
@@ -110,11 +116,25 @@ const Navbar = () => {
       const requestId = ++cartRequestRef.current;
 
       try {
+        const authenticated = await checkAuthSession();
+        if (!authenticated) {
+          if (mounted && requestId === cartRequestRef.current) {
+            setCartCount(0);
+          }
+          return;
+        }
+
         const count = await getCartCount();
         if (mounted && requestId === cartRequestRef.current) {
           setCartCount(count);
         }
       } catch (error) {
+        if (axios.isAxiosError(error) && error.response?.status === 401) {
+          clearAuthSession();
+          setCartCount(0);
+          return;
+        }
+
         console.error("Navbar cart count error:", error);
 
         if (mounted && requestId === cartRequestRef.current) {
@@ -153,31 +173,29 @@ const Navbar = () => {
       console.error("Logout error:", err);
     }
 
+    clearAuthSession();
     setMenuOpen(false);
 
-    try {
-      // notify other parts of the app (cart count, profile state)
-      window.dispatchEvent(new Event("cartUpdated"));
-    } catch (e) {}
+    window.dispatchEvent(new Event("cartUpdated"));
 
     router.push("/categories");
   };
-
-  console.log("pathname:", pathname);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-[#e7ece4] bg-[#fcfdf9]/95 backdrop-blur-xl">
       <div className="mx-auto flex h-[78px] max-w-[1400px] items-center justify-between px-5 sm:px-7 lg:px-10">
         {/* LOGO */}
         <Link href="/" className="group shrink-0">
-          <Image
-            src="/images/logo.png"
-            alt="ProteinBay"
-            width={190}
-            height={62}
-            priority
-            className="h-auto w-[148px] object-contain transition-transform duration-300 group-hover:scale-[1.02] sm:w-[170px]"
-          />
+          <span className="relative block h-[49px] w-[148px] transition-transform duration-300 group-hover:scale-[1.02] sm:h-[56px] sm:w-[170px]">
+            <Image
+              src="/images/logo.png"
+              alt="ProteinBay"
+              fill
+              priority
+              sizes="(max-width: 640px) 148px, 170px"
+              className="object-contain"
+            />
+          </span>
         </Link>
 
         {/* DESKTOP NAVIGATION */}
@@ -215,6 +233,16 @@ const Navbar = () => {
 
           <Link
             href="/wishlist"
+            onClick={async (event) => {
+              event.preventDefault();
+              const authenticated = await requireAuthentication(router, {
+                kind: "navigate",
+                returnTo: "/wishlist",
+              });
+              if (authenticated) {
+                router.push("/wishlist");
+              }
+            }}
             aria-label="Wishlist"
             className="group relative flex h-11 w-11 items-center justify-center rounded-full border border-[#e1e8de] bg-white text-[#29402e] shadow-[0_3px_12px_rgba(23,59,27,0.035)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#cbdac5] hover:bg-[#f3f7ef] hover:text-[#173b1b] hover:shadow-[0_7px_20px_rgba(23,59,27,0.08)]"
           >
@@ -234,6 +262,16 @@ const Navbar = () => {
 
           <Link
             href="/cart"
+            onClick={async (event) => {
+              event.preventDefault();
+              const authenticated = await requireAuthentication(router, {
+                kind: "navigate",
+                returnTo: "/cart",
+              });
+              if (authenticated) {
+                router.push("/cart");
+              }
+            }}
             aria-label="Shopping Cart"
             className="group relative flex h-11 w-11 items-center justify-center rounded-full border border-[#e1e8de] bg-white text-[#29402e] shadow-[0_3px_12px_rgba(23,59,27,0.035)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[#cbdac5] hover:bg-[#f3f7ef] hover:text-[#173b1b] hover:shadow-[0_7px_20px_rgba(23,59,27,0.08)]"
           >
